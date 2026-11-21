@@ -50,6 +50,8 @@ func TestWriteMP4TagsItunesMetadata(t *testing.T) {
 			cfg := config.ConfigSet{}
 			cfg.Metadata.Tags.ItunesID = tt.writeID
 			track := &model.Track{ID: tt.id, SavePath: path}
+			track.Storefront = "cn"
+			track.Resp.Href = "/v1/catalog/us/songs/1717034230"
 			track.Resp.Attributes.ContentRating = tt.rating
 			if err := NewRunner(cfg).writeMP4Tags(track, ""); err != nil {
 				t.Fatal(err)
@@ -65,6 +67,13 @@ func TestWriteMP4TagsItunesMetadata(t *testing.T) {
 			}
 			if tags.ItunesCatalogID != tt.wantID {
 				t.Errorf("catalog ID = %d, want %d", tags.ItunesCatalogID, tt.wantID)
+			}
+			var wantStorefrontID uint32
+			if tt.writeID {
+				wantStorefrontID = 143441
+			}
+			if tags.ItunesStorefrontID != wantStorefrontID {
+				t.Errorf("storefront ID = %d, want %d", tags.ItunesStorefrontID, wantStorefrontID)
 			}
 			if tags.ItunesMediaType == nil || *tags.ItunesMediaType != mp4tag.ItunesMediaTypeMusic {
 				t.Error("expected native iTunes music media type")

@@ -1,6 +1,7 @@
 package app
 
 import (
+	ampapi "amdl/internal/amp-api"
 	"amdl/internal/download"
 	"amdl/internal/fsutil"
 	"amdl/internal/model"
@@ -186,6 +187,7 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 	}
 
 	if r.Config.Metadata.Tags.ItunesID {
+		t.ItunesStorefrontID = ampapi.ItunesStorefrontID(track.Resp.Href, track.Storefront)
 		// Missing or oversized catalog IDs should not prevent tagging the track.
 		if id, err := strconv.ParseUint(track.ID, 10, 32); err == nil {
 			t.ItunesCatalogID = uint32(id)
