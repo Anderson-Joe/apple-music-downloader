@@ -3,11 +3,63 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"amdl/internal/config"
+	defrag "amdl/internal/media/defrag"
+	"amdl/internal/model"
+
+	"github.com/itouakirai/go-mp4tag"
 )
+
+func TestWriteMP4TagsPreservesNativeGenres(t *testing.T) {
+	const fixture = "../media/mv/testdata/A48"
+	init, err := os.ReadFile(filepath.Join(fixture, "init.mp4"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	segment, err := os.ReadFile(filepath.Join(fixture, "1.m4s"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "genres.m4a")
+	if err := os.WriteFile(path, append(init, segment...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := defrag.DefragmentMP4(path); err != nil {
+		t.Fatal(err)
+	}
+
+	runner := NewRunner(config.ConfigSet{})
+	track := &model.Track{SavePath: path}
+	track.Resp.Attributes.Isrc = "USAAA2600001"
+	for _, genres := range [][]string{{"Pop"}, {"Rock", "R&B/Soul"}, {"Jazz", "Blues"}} {
+		track.Resp.Attributes.GenreNames = genres
+		if err := runner.writeMP4Tags(track, ""); err != nil {
+			t.Fatal(err)
+		}
+		file, err := mp4tag.Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tags, err := file.Read()
+		file.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(tags.CustomGenres, genres) {
+			t.Fatalf("native genres = %q, want %q", tags.CustomGenres, genres)
+		}
+		if _, ok := tags.Custom["GENRE"]; ok {
+			t.Fatal("unexpected freeform GENRE tag")
+		}
+		if tags.Custom["ISRC"] != track.Resp.Attributes.Isrc {
+			t.Fatalf("ISRC = %q, want %q", tags.Custom["ISRC"], track.Resp.Attributes.Isrc)
+		}
+	}
+}
 
 func TestStreamAllowedCPC(t *testing.T) {
 	const master = `#EXTM3U
@@ -106,4 +158,3 @@ func TestSaveM3UPlaylist(t *testing.T) {
 		t.Fatalf("m3u8 missing tracks after startIdx, got: %s", content)
 	}
 }
-
