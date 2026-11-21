@@ -108,7 +108,12 @@ func TestWriteMP4TagsSongCredits(t *testing.T) {
 		"composers":{"data":[{"attributes":{"name":"Composer A"}},{"attributes":{"name":"Composer B"}}]},
 		"credits":{"data":[
 			{"attributes":{"kind":"performer"},"relationships":{"credit-artists":{"data":[
-				{"attributes":{"name":"Singer","roleNames":["演唱","Vocals"]}}
+				{"attributes":{"name":"Singer","roleNames":["演唱","Vocals"]}},
+				{"attributes":{"name":"Conductor A","roleNames":["Conductor","指揮"]}},
+				{"attributes":{"name":"Conductor B","roleNames":["指揮"]}},
+				{"attributes":{"name":"Remixer","roleNames":["混音師","Remixer"]}},
+				{"attributes":{"name":"DJ Mixer","roleNames":["DJ Mixer"]}},
+				{"attributes":{"name":"DJ","roleNames":["DJ"]}}
 			]}}},
 			{"attributes":{"kind":"composer-and-lyrics"},"relationships":{"credit-artists":{"data":[
 				{"attributes":{"name":"Lyricist A","roleNames":["作詞","Lyrics","Arranger"]}},
@@ -117,7 +122,7 @@ func TestWriteMP4TagsSongCredits(t *testing.T) {
 			]}}},
 			{"attributes":{"kind":"production-and-engineering"},"relationships":{"credit-artists":{"data":[
 				{"attributes":{"name":"Producer A","roleNames":["Producer","Mastering Engineer"]}},
-				{"attributes":{"name":"Producer B","roleNames":["製作人","混音師"]}}
+				{"attributes":{"name":"Producer B","roleNames":["製作人","混音師","Creative Director"]}}
 			]}}}
 		]}
 	}`), &credits); err != nil {
@@ -164,7 +169,14 @@ func TestWriteMP4TagsSongCredits(t *testing.T) {
 					"PRODUCER":  {"Producer A", "Producer B"},
 					"ENGINEER":  {"Producer A"},
 					"MIXER":     {"Producer B"},
-					"PERFORMER": {"Singer (演唱)", "Singer (Vocals)"},
+					"CONDUCTOR": {"Conductor A", "Conductor B"},
+					"REMIXER":   {"Remixer"},
+					"DJMIXER":   {"DJ Mixer"},
+					"PERFORMER": {
+						"Singer (演唱)", "Singer (Vocals)",
+						"Conductor A (Conductor)", "Conductor A (指揮)", "Conductor B (指揮)",
+						"Remixer (混音師)", "Remixer (Remixer)", "DJ Mixer (DJ Mixer)", "DJ (DJ)",
+					},
 				}
 				if tt.sort {
 					wantCustom["LYRICISTSORT"] = wantCustom["LYRICIST"]
@@ -180,7 +192,10 @@ func TestWriteMP4TagsSongCredits(t *testing.T) {
 			if !slices.Equal(tags.ComposerSorts, wantComposerSort) {
 				t.Errorf("COMPOSERSORT = %q, want %q", tags.ComposerSorts, wantComposerSort)
 			}
-			for _, name := range []string{"LYRICIST", "ARRANGER", "PRODUCER", "ENGINEER", "MIXER", "PERFORMER", "LYRICISTSORT", "SONGWRITER"} {
+			for _, name := range []string{
+				"LYRICIST", "ARRANGER", "PRODUCER", "ENGINEER", "MIXER", "PERFORMER",
+				"LYRICISTSORT", "CONDUCTOR", "REMIXER", "DJMIXER", "DIRECTOR", "SONGWRITER",
+			} {
 				var names []string
 				if first, ok := tags.Custom[name]; ok {
 					names = append([]string{first}, tags.OtherCustom[name]...)
