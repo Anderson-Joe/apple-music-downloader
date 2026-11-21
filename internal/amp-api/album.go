@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	"amdl/internal/download"
@@ -257,7 +258,7 @@ var releaseVersion = regexp.MustCompile(`\(([^()]*)\)|\[([^\[\]]*)\]`)
 
 // ReleaseTypes returns explicit release classifications in primary-then-secondary
 // order. The Apple Music Style Guide uses title suffixes for singles and EPs
-// and bracketed version information for soundtracks.
+// and bracketed version information for release editions.
 func (a *AlbumRespData) ReleaseTypes() []string {
 	name := strings.ToLower(strings.TrimSpace(a.Attributes.Name))
 	var types []string
@@ -271,13 +272,34 @@ func (a *AlbumRespData) ReleaseTypes() []string {
 		types = append(types, "Compilation")
 	}
 	for _, version := range releaseVersion.FindAllStringSubmatch(name, -1) {
-		title := strings.TrimPrefix(strings.TrimSpace(version[1]+version[2]), "score from the ")
-		switch title {
-		case "soundtrack", "original soundtrack", "original motion picture soundtrack",
-			"original television soundtrack", "original game soundtrack",
-			"original video game soundtrack", "korean original motion picture soundtrack":
-			return append(types, "Soundtrack")
+		releaseType := versionReleaseType(strings.TrimSpace(version[1] + version[2]))
+		if releaseType != "" && !slices.Contains(types, releaseType) {
+			types = append(types, releaseType)
 		}
 	}
 	return types
+}
+
+func versionReleaseType(version string) string {
+	switch strings.TrimPrefix(version, "score from the ") {
+	case "soundtrack", "original soundtrack", "original motion picture soundtrack",
+		"original television soundtrack", "original game soundtrack",
+		"original video game soundtrack", "korean original motion picture soundtrack":
+		return "Soundtrack"
+	}
+
+	switch version {
+	case "live", "live acoustic", "ao vivo", "en vivo", "en directo":
+		return "Live"
+	case "remix", "remixes":
+		return "Remix"
+	}
+	switch {
+	case strings.HasPrefix(version, "live at "), strings.HasPrefix(version, "live in "),
+		strings.HasPrefix(version, "live from "), strings.HasPrefix(version, "live on "):
+		return "Live"
+	case strings.HasSuffix(version, " remix"):
+		return "Remix"
+	}
+	return ""
 }
