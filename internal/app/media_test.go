@@ -3,6 +3,7 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -33,21 +34,25 @@ func TestWriteMP4TagsReleaseMetadata(t *testing.T) {
 		upc          string
 		albumName    string
 		isSingle     bool
-		wantType     string
+		wantTypes    []string
 		wantBarcode  string
 		wantCompiled bool
 	}{
-		{name: "compilation album", source: "albums", compilation: true, upc: "0196871644518", wantBarcode: "0196871644518", wantCompiled: true},
+		{name: "compilation album", source: "albums", compilation: true, upc: "0196871644518", wantBarcode: "0196871644518", wantCompiled: true, wantTypes: []string{"Compilation"}},
 		{name: "regular album", source: "albums", upc: "0196871486996", wantBarcode: "0196871486996"},
-		{name: "single", source: "albums", albumName: "唯一 - Single", isSingle: true, upc: "196871486996", wantBarcode: "196871486996", wantType: "Single"},
-		{name: "EP", source: "albums", albumName: "T.I.M.E. - EP", upc: "196871644518", wantBarcode: "196871644518", wantType: "EP"},
+		{name: "single", source: "albums", albumName: "唯一 - Single", isSingle: true, upc: "196871486996", wantBarcode: "196871486996", wantTypes: []string{"Single"}},
+		{name: "EP", source: "albums", albumName: "T.I.M.E. - EP", upc: "196871644518", wantBarcode: "196871644518", wantTypes: []string{"EP"}},
 		{name: "unmarked one-track release", source: "albums", albumName: "Long Suite", isSingle: true},
-		{name: "EP marker takes precedence for a one-track release", source: "albums", albumName: "Long Suite - EP", isSingle: true, wantType: "EP"},
+		{name: "EP marker takes precedence for a one-track release", source: "albums", albumName: "Long Suite - EP", isSingle: true, wantTypes: []string{"EP"}},
 		{name: "nonfinal text is not a type marker", source: "albums", albumName: "Studio - EP Sessions"},
-		{name: "missing UPC", source: "albums", compilation: true, wantCompiled: true},
-		{name: "playlist using album", source: "playlists", useSongInfo: true, compilation: true, upc: "0196871644518", albumName: "Release - EP", wantBarcode: "0196871644518", wantCompiled: true, wantType: "EP"},
+		{name: "music inspired by a soundtrack", source: "albums", albumName: "Songs (Inspired by the Original Motion Picture Soundtrack)"},
+		{name: "soundtrack score", source: "albums", albumName: "Barbie (Score from the Original Motion Picture Soundtrack)", wantTypes: []string{"Soundtrack"}},
+		{name: "compiled TV soundtrack", source: "albums", compilation: true, albumName: "Queen of Tears (Original Television Soundtrack) Special", wantCompiled: true, wantTypes: []string{"Compilation", "Soundtrack"}},
+		{name: "soundtrack EP", source: "albums", albumName: "Series [Original Television Soundtrack] - EP", wantTypes: []string{"EP", "Soundtrack"}},
+		{name: "missing UPC", source: "albums", compilation: true, wantCompiled: true, wantTypes: []string{"Compilation"}},
+		{name: "playlist using album", source: "playlists", useSongInfo: true, compilation: true, upc: "0196871644518", albumName: "Release - EP", wantBarcode: "0196871644518", wantCompiled: true, wantTypes: []string{"EP", "Compilation"}},
 		{name: "playlist as album", source: "playlists", compilation: true, upc: "0196871644518", albumName: "Release - EP"},
-		{name: "station using album", source: "stations", useSongInfo: true, compilation: true, upc: "0196871644518", albumName: "Release - Single", wantBarcode: "0196871644518", wantCompiled: true, wantType: "Single"},
+		{name: "station using album", source: "stations", useSongInfo: true, compilation: true, upc: "0196871644518", albumName: "Release - Single", wantBarcode: "0196871644518", wantCompiled: true, wantTypes: []string{"Single", "Compilation"}},
 		{name: "station as album", source: "stations", compilation: true, upc: "0196871644518", albumName: "Release - Single"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -80,8 +85,12 @@ func TestWriteMP4TagsReleaseMetadata(t *testing.T) {
 			if barcode, upc := tags.Custom["BARCODE"], tags.Custom["UPC"]; barcode != tt.wantBarcode || upc != tt.wantBarcode {
 				t.Fatalf("BARCODE = %q, UPC = %q, want %q for both", barcode, upc, tt.wantBarcode)
 			}
-			if releaseType, present := tags.Custom["RELEASETYPE"]; releaseType != tt.wantType || present != (tt.wantType != "") {
-				t.Errorf("RELEASETYPE = %q (present = %t), want %q", releaseType, present, tt.wantType)
+			var releaseTypes []string
+			if firstType, present := tags.Custom["RELEASETYPE"]; present {
+				releaseTypes = append([]string{firstType}, tags.OtherCustom["RELEASETYPE"]...)
+			}
+			if !slices.Equal(releaseTypes, tt.wantTypes) {
+				t.Errorf("RELEASETYPE = %q, want %q", releaseTypes, tt.wantTypes)
 			}
 			if tt.wantCompiled {
 				if tags.Compilation == nil || !*tags.Compilation {

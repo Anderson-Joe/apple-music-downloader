@@ -157,12 +157,13 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 			"LABEL":       "",
 			"UPC":         "",
 		},
-		Composer:    track.Resp.Attributes.ComposerName,
-		CustomGenre: firstGenre(track.Resp.Attributes.GenreNames),
-		Lyrics:      lrc,
-		TrackNumber: int16(track.Resp.Attributes.TrackNumber),
-		DiscNumber:  int16(track.Resp.Attributes.DiscNumber),
-		Album:       track.Resp.Attributes.AlbumName,
+		ReplaceCustomValues: map[string][]string{"RELEASETYPE": nil},
+		Composer:            track.Resp.Attributes.ComposerName,
+		CustomGenre:         firstGenre(track.Resp.Attributes.GenreNames),
+		Lyrics:              lrc,
+		TrackNumber:         int16(track.Resp.Attributes.TrackNumber),
+		DiscNumber:          int16(track.Resp.Attributes.DiscNumber),
+		Album:               track.Resp.Attributes.AlbumName,
 	}
 
 	if r.Config.Metadata.Artwork.Embed && track.CoverPath != "" {
@@ -222,7 +223,7 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		t.AlbumArtist = album.ArtistName
 		t.Custom["UPC"] = album.Upc
 		t.Custom["BARCODE"] = album.Upc
-		t.Custom["RELEASETYPE"] = track.AlbumData.ReleaseType()
+		t.ReplaceCustomValues["RELEASETYPE"] = track.AlbumData.ReleaseTypes()
 		if isPlaylistOrStation {
 			t.Custom["LABEL"] = album.RecordLabel
 		}
