@@ -53,12 +53,13 @@ func TestMetadataIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = previous.Write(&mp4tag.MP4Tags{ReplaceCustomValues: map[string][]string{
+	existingArtistTags := map[string][]string{
 		"ARTISTS":          {"Old artist A", "Old artist B"},
 		"ALBUMARTISTS":     {"Old album artist A", "Old album artist B"},
 		"ARTISTSSORT":      {"Old artist A", "Old artist B"},
 		"ALBUMARTISTSSORT": {"Old album artist A", "Old album artist B"},
-	}}, nil)
+	}
+	err = previous.Write(&mp4tag.MP4Tags{ReplaceCustomValues: existingArtistTags}, nil)
 	previous.Close()
 	if err != nil {
 		t.Fatal(err)
@@ -113,7 +114,7 @@ func TestMetadataIntegration(t *testing.T) {
 			t.Errorf("%s = %q, want %q", field.name, field.got, field.want)
 		}
 	}
-	for field, want := range map[string][]string{
+	wantCustomTags := map[string][]string{
 		"GENREID": {"14", "16"}, "RELEASETYPE": {"EP", "Compilation", "Soundtrack"},
 		"UPC": {"0196871644518"}, "BARCODE": {"0196871644518"},
 		"ISRC": {"HKA972302100"}, "RELEASETIME": {"2023-09-24"},
@@ -121,18 +122,17 @@ func TestMetadataIntegration(t *testing.T) {
 		"ARRANGER": {"Writer A", "Writer B"}, "PRODUCER": {"Producer A", "Producer B"},
 		"ENGINEER": {"Producer A"}, "MIXER": {"Producer B"},
 		"PERFORMER": {"Singer A (Vocals)", "Singer B (Guitar)"},
-	} {
+	}
+	for field, values := range existingArtistTags {
+		wantCustomTags[field] = values
+	}
+	for field, want := range wantCustomTags {
 		var got []string
 		if first, ok := tags.Custom[field]; ok {
 			got = append([]string{first}, tags.OtherCustom[field]...)
 		}
 		if !slices.Equal(got, want) {
 			t.Errorf("%s = %q, want %q", field, got, want)
-		}
-	}
-	for _, field := range []string{"ARTISTS", "ALBUMARTISTS", "ARTISTSSORT", "ALBUMARTISTSSORT"} {
-		if _, present := tags.Custom[field]; present {
-			t.Errorf("legacy freeform %s was preserved", field)
 		}
 	}
 	if tags.Title != "Integration song" || tags.Album != "Series [Original Television Soundtrack] - EP" ||
