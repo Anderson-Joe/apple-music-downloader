@@ -7,7 +7,74 @@ import (
 	"testing"
 
 	"amdl/internal/config"
+	defrag "amdl/internal/media/defrag"
+	"amdl/internal/model"
+
+	"github.com/itouakirai/go-mp4tag"
 )
+
+func TestWriteMP4TagsItunesMetadata(t *testing.T) {
+	const fixture = "../media/mv/testdata/A48"
+	init, err := os.ReadFile(filepath.Join(fixture, "init.mp4"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	segment, err := os.ReadFile(filepath.Join(fixture, "1.m4s"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	audio := append(init, segment...)
+
+	for _, tt := range []struct {
+		name     string
+		id       string
+		writeID  bool
+		wantID   uint32
+		rating   string
+		advisory mp4tag.ItunesAdvisory
+	}{
+		{name: "catalog track", id: "1717034230", writeID: true, wantID: 1717034230, rating: "explicit", advisory: mp4tag.ItunesAdvisoryExplicit},
+		{name: "unsigned ID", id: "4294967295", writeID: true, wantID: 4294967295, rating: "clean", advisory: mp4tag.ItunesAdvisoryClean},
+		{name: "out of range", id: "4294967296", writeID: true},
+		{name: "noncatalog ID", id: "library-track", writeID: true},
+		{name: "disabled", id: "1717034230"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "track.m4a")
+			if err := os.WriteFile(path, audio, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := defrag.DefragmentMP4(path); err != nil {
+				t.Fatal(err)
+			}
+			cfg := config.ConfigSet{}
+			cfg.Metadata.Tags.ItunesID = tt.writeID
+			track := &model.Track{ID: tt.id, SavePath: path}
+			track.Resp.Attributes.ContentRating = tt.rating
+			if err := NewRunner(cfg).writeMP4Tags(track, ""); err != nil {
+				t.Fatal(err)
+			}
+			file, err := mp4tag.Open(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer file.Close()
+			tags, err := file.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tags.ItunesCatalogID != tt.wantID {
+				t.Errorf("catalog ID = %d, want %d", tags.ItunesCatalogID, tt.wantID)
+			}
+			if tags.ItunesMediaType == nil || *tags.ItunesMediaType != mp4tag.ItunesMediaTypeMusic {
+				t.Error("expected native iTunes music media type")
+			}
+			if tags.ItunesAdvisory != tt.advisory {
+				t.Errorf("advisory = %v, want %v", tags.ItunesAdvisory, tt.advisory)
+			}
+		})
+	}
+}
 
 func TestStreamAllowedCPC(t *testing.T) {
 	const master = `#EXTM3U
@@ -106,4 +173,3 @@ func TestSaveM3UPlaylist(t *testing.T) {
 		t.Fatalf("m3u8 missing tracks after startIdx, got: %s", content)
 	}
 }
-

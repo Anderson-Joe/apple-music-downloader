@@ -147,6 +147,7 @@ func firstGenre(genres []string) string {
 }
 
 func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
+	mediaType := mp4tag.ItunesMediaTypeMusic
 	t := &mp4tag.MP4Tags{
 		Title:  track.Resp.Attributes.Name,
 		Artist: track.Resp.Attributes.ArtistName,
@@ -157,12 +158,13 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 			"LABEL":       "",
 			"UPC":         "",
 		},
-		Composer:    track.Resp.Attributes.ComposerName,
-		CustomGenre: firstGenre(track.Resp.Attributes.GenreNames),
-		Lyrics:      lrc,
-		TrackNumber: int16(track.Resp.Attributes.TrackNumber),
-		DiscNumber:  int16(track.Resp.Attributes.DiscNumber),
-		Album:       track.Resp.Attributes.AlbumName,
+		Composer:        track.Resp.Attributes.ComposerName,
+		CustomGenre:     firstGenre(track.Resp.Attributes.GenreNames),
+		ItunesMediaType: &mediaType,
+		Lyrics:          lrc,
+		TrackNumber:     int16(track.Resp.Attributes.TrackNumber),
+		DiscNumber:      int16(track.Resp.Attributes.DiscNumber),
+		Album:           track.Resp.Attributes.AlbumName,
 	}
 
 	if r.Config.Metadata.Artwork.Embed && track.CoverPath != "" {
@@ -184,6 +186,10 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 	}
 
 	if r.Config.Metadata.Tags.ItunesID {
+		// Missing or oversized catalog IDs should not prevent tagging the track.
+		if id, err := strconv.ParseUint(track.ID, 10, 32); err == nil {
+			t.ItunesCatalogID = uint32(id)
+		}
 		if track.PreType == "albums" {
 			albumID, err := strconv.ParseUint(track.PreID, 10, 64)
 			if err != nil {
