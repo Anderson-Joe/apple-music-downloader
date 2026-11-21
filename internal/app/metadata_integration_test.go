@@ -8,6 +8,7 @@ import (
 	ampapi "amdl/internal/amp-api"
 	"amdl/internal/config"
 	"amdl/internal/model"
+	"amdl/internal/wrapper"
 
 	"github.com/itouakirai/go-mp4tag"
 )
@@ -68,6 +69,10 @@ func TestMetadataIntegration(t *testing.T) {
 		ID: "1717034230", Storefront: "us", SavePath: path,
 		PreType: "albums", PreID: "1717034215", DiscTotal: 1,
 		Credits: &ampapi.SongCredits{},
+		Playback: wrapper.WebplaybackData{
+			XID: "Vendor:isrc:TEST", Comments: "Playback comment",
+			Gapless: json.RawMessage(`false`), GenreID: json.RawMessage(`"16"`),
+		},
 	}
 	for _, fixture := range []struct {
 		data string
@@ -82,6 +87,7 @@ func TestMetadataIntegration(t *testing.T) {
 	cfg.Metadata.Tags.SortOrder = true
 	cfg.Metadata.Tags.ItunesID = true
 	cfg.Metadata.Tags.Credits = true
+	cfg.Metadata.Tags.PlaybackTags = true
 	runner := NewRunner(cfg)
 	for range 2 {
 		if err := runner.writeMP4Tags(&track, "[00:01.00] Test lyrics"); err != nil {
@@ -127,6 +133,11 @@ func TestMetadataIntegration(t *testing.T) {
 	if !slices.Equal(tags.ItunesArtistIDs, []uint64{425208570, 425208571}) ||
 		!slices.Equal(tags.ItunesComposerIDs, []uint64{4294967297, 2001}) {
 		t.Errorf("artist IDs = %v, composer IDs = %v", tags.ItunesArtistIDs, tags.ItunesComposerIDs)
+	}
+	if tags.XID != "Vendor:isrc:TEST" || tags.Comment != "Playback comment" ||
+		tags.ItunesGapless == nil || *tags.ItunesGapless || tags.ItunesGenreID != 16 {
+		t.Errorf("playback metadata changed: XID %q, comment %q, gapless %v, genre ID %d",
+			tags.XID, tags.Comment, tags.ItunesGapless, tags.ItunesGenreID)
 	}
 	for field, values := range existingArtistTags {
 		wantCustomTags[field] = values

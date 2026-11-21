@@ -9,6 +9,7 @@ import (
 	"amdl/internal/model"
 	"amdl/internal/widevine-rip"
 	"amdl/internal/widevine-rip/runv5"
+	"amdl/internal/wrapper"
 	"context"
 	"errors"
 	"fmt"
@@ -295,6 +296,13 @@ func (r *Runner) ripTrack(track *model.Track, token string, mediaUserToken strin
 			fmt.Println("Failed to load song credits:", err)
 		}
 		track.Credits = credits
+	}
+	if r.Config.Metadata.Tags.PlaybackTags && r.Config.General.LiteServer != "" {
+		playback, err := wrapper.New(r.Config.General.LiteServer).WebplaybackInfo(track.ID)
+		if err != nil {
+			fmt.Println("Failed to load optional playback tags:", err)
+		}
+		track.Playback = playback
 	}
 	err = r.writeMP4Tags(track, lrc)
 	if err != nil {

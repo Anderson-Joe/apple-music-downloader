@@ -251,6 +251,7 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 	}
 
 	applySongCredits(t, track.Credits, r.Config.Metadata.Tags.SortOrder, r.Config.Metadata.Tags.ItunesID)
+	r.applyPlaybackTags(t, track.Playback)
 	if r.Config.Metadata.Tags.SortOrder && len(t.ReplaceCustomValues["PERFORMER"]) == 0 && t.Custom["PERFORMER"] != "" {
 		t.ReplaceCustomValues["PERFORMERSORT"] = []string{t.Custom["PERFORMER"]}
 	}

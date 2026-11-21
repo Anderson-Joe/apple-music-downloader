@@ -52,7 +52,7 @@ func (r *Runner) mvDownloader(adamID string, saveDir string, token string, store
 		return nil
 	}
 
-	mvm3u8url, err := wrapper.GetWebplayback(r.Config.General.LiteServer, adamID)
+	playback, err := wrapper.New(r.Config.General.LiteServer).WebplaybackInfo(adamID)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (r *Runner) mvDownloader(adamID string, saveDir string, token string, store
 
 	defer os.Remove(vidPath)
 	defer os.Remove(audPath)
-	if err := r.downloadMVTracks(context.Background(), adamID, mvm3u8url, vidPath, audPath); err != nil {
+	if err := r.downloadMVTracks(context.Background(), adamID, playback.M3u8, vidPath, audPath); err != nil {
 		return err
 	}
 
@@ -87,7 +87,7 @@ func (r *Runner) mvDownloader(adamID string, saveDir string, token string, store
 	}
 	fmt.Printf("\rMV Remuxed.   \n")
 
-	if err := r.writeMVMP4Tags(mvOutPath, MVInfo, track, covPath); err != nil {
+	if err := r.writeMVMP4Tags(mvOutPath, MVInfo, track, covPath, playback); err != nil {
 		_ = os.Remove(mvOutPath)
 		fmt.Printf("MV tag writing failed: %v\n", err)
 		return err
@@ -161,7 +161,7 @@ func (r *Runner) downloadMVTrack(ctx context.Context, adamID, playlistURL string
 	return nil
 }
 
-func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, track *model.Track, coverPath string) error {
+func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, track *model.Track, coverPath string, playback wrapper.WebplaybackData) error {
 	if mvInfo == nil || len(mvInfo.Data) == 0 {
 		return errors.New("music video response contains no data")
 	}
@@ -219,6 +219,7 @@ func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, trac
 	default:
 		tags.ItunesAdvisory = mp4tag.ItunesAdvisoryNone
 	}
+	r.applyPlaybackTags(tags, playback)
 
 	if r.Config.Metadata.Artwork.Embed && coverPath != "" {
 		cover, err := os.ReadFile(coverPath)
