@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
+	"slices"
 	"strings"
 
 	"amdl/internal/download"
@@ -30,7 +32,7 @@ func GetAlbumResp(storefront string, id string, language string, token string) (
 	query := url.Values{}
 	query.Set("omit[resource]", "autos")
 	query.Set("include", "tracks,artists,record-labels")
-	query.Set("include[songs]", "artists")
+	query.Set("include[songs]", "artists,genres")
 	//query.Set("fields[artists]", "name,artwork")
 	//query.Set("fields[albums:albums]", "artistName,artwork,name,releaseDate,url")
 	//query.Set("fields[record-labels]", "name")
@@ -60,6 +62,7 @@ func GetAlbumResp(storefront string, id string, language string, token string) (
 			obj.Data[0].Relationships.Tracks.Data = append(obj.Data[0].Relationships.Tracks.Data, obj2.Data...)
 			next = obj2.Next
 			if len(next) == 0 {
+				obj.Data[0].Relationships.Tracks.Next = ""
 				break
 			}
 		}
@@ -77,7 +80,7 @@ func fetchTrackPage(next string, token string) (*TrackResp, error) {
 	req.Header.Set("Origin", "https://music.apple.com")
 	query := req.URL.Query()
 	query.Set("omit[resource]", "autos")
-	query.Set("include", "artists")
+	query.Set("include", "artists,genres")
 	query.Set("extend", "editorialVideo,extendedAssetUrls")
 	req.URL.RawQuery = query.Encode()
 
@@ -115,7 +118,7 @@ func GetAlbumRespByHref(href string, language string, token string) (*AlbumResp,
 	query := url.Values{}
 	query.Set("omit[resource]", "autos")
 	query.Set("include", "tracks,artists,record-labels")
-	query.Set("include[songs]", "artists")
+	query.Set("include[songs]", "artists,genres")
 	//query.Set("fields[artists]", "name,artwork")
 	//query.Set("fields[albums:albums]", "artistName,artwork,name,releaseDate,url")
 	//query.Set("fields[record-labels]", "name")
@@ -147,7 +150,7 @@ func GetAlbumRespByHref(href string, language string, token string) (*AlbumResp,
 			req.Header.Set("Origin", "https://music.apple.com")
 			query := req.URL.Query()
 			query.Set("omit[resource]", "autos")
-			query.Set("include", "artists")
+			query.Set("include", "artists,genres")
 			query.Set("extend", "editorialVideo,extendedAssetUrls")
 			req.URL.RawQuery = query.Encode()
 			do, err := download.Client.Do(req)
@@ -166,6 +169,7 @@ func GetAlbumRespByHref(href string, language string, token string) (*AlbumResp,
 			obj.Data[0].Relationships.Tracks.Data = append(obj.Data[0].Relationships.Tracks.Data, obj2.Data...)
 			next = obj2.Next
 			if len(next) == 0 {
+				obj.Data[0].Relationships.Tracks.Next = ""
 				break
 			}
 		}
@@ -250,4 +254,93 @@ type AlbumRespData struct {
 		} `json:"artists"`
 		Tracks TrackResp `json:"tracks"`
 	} `json:"relationships"`
+}
+
+var releaseVersion = regexp.MustCompile(`\(([^()]*)\)|\[([^\[\]]*)\]`)
+
+// ReleaseTypes returns release classifications in primary-then-secondary order.
+// Explicit Apple Music title markers take precedence over the optional fallback.
+func (a *AlbumRespData) ReleaseTypes(inferAlbum bool) []string {
+	name := strings.ToLower(strings.TrimSpace(a.Attributes.Name))
+	var types []string
+	switch {
+	case strings.HasSuffix(name, " - ep"):
+		types = append(types, "EP")
+	case strings.HasSuffix(name, " - single"):
+		types = append(types, "Single")
+	case inferAlbum && a.excludesSingleAndEP():
+		types = append(types, "Album")
+	}
+	if a.Attributes.IsCompilation {
+		types = append(types, "Compilation")
+	}
+	for _, version := range releaseVersion.FindAllStringSubmatch(name, -1) {
+		releaseType := versionReleaseType(strings.TrimSpace(version[1] + version[2]))
+		if releaseType != "" && !slices.Contains(types, releaseType) {
+			types = append(types, releaseType)
+		}
+	}
+	return types
+}
+
+func (a *AlbumRespData) excludesSingleAndEP() bool {
+	attrs, tracks := &a.Attributes, &a.Relationships.Tracks
+	if a.Type != "albums" || !attrs.IsComplete || attrs.IsSingle ||
+		tracks.Next != "" || len(tracks.Data) != attrs.TrackCount {
+		return false
+	}
+
+	// Apple's single and EP rules count songs, excluding bonus music videos.
+	const singleSongLimitMS = 10 * 60 * 1000
+	const epLimitMS = 30 * 60 * 1000
+	var totalMS int64
+	var songs int
+	var hasLongSong, missingDuration bool
+	for _, track := range tracks.Data {
+		switch track.Type {
+		case "music-videos":
+			continue
+		case "songs":
+			songs++
+		default:
+			return false
+		}
+		duration := track.Attributes.DurationInMillis
+		if duration <= 0 {
+			missingDuration = true
+			continue
+		}
+		totalMS += int64(duration)
+		hasLongSong = hasLongSong || duration >= singleSongLimitMS
+	}
+	if songs > 6 {
+		return true
+	}
+	// For up to six songs, a running time above 30 minutes rules out EP.
+	// One to three songs still need a song of at least 10 minutes to rule out Single.
+	return !missingDuration && totalMS > epLimitMS && (songs >= 4 || hasLongSong)
+}
+
+func versionReleaseType(version string) string {
+	switch strings.TrimPrefix(version, "score from the ") {
+	case "soundtrack", "original soundtrack", "original motion picture soundtrack",
+		"original television soundtrack", "original game soundtrack",
+		"original video game soundtrack", "korean original motion picture soundtrack":
+		return "Soundtrack"
+	}
+
+	switch version {
+	case "live", "live acoustic", "ao vivo", "en vivo", "en directo":
+		return "Live"
+	case "remix", "remixes":
+		return "Remix"
+	}
+	switch {
+	case strings.HasPrefix(version, "live at "), strings.HasPrefix(version, "live in "),
+		strings.HasPrefix(version, "live from "), strings.HasPrefix(version, "live on "):
+		return "Live"
+	case strings.HasSuffix(version, " remix"):
+		return "Remix"
+	}
+	return ""
 }
