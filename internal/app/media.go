@@ -159,8 +159,12 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 			"LABEL":       "",
 			"UPC":         "",
 		},
+		ReplaceCustomValues: map[string][]string{
+			"GENREID":     track.Resp.GenreIDs(),
+			"RELEASETYPE": nil,
+		},
 		Composer:        track.Resp.Attributes.ComposerName,
-		CustomGenre:     firstGenre(track.Resp.Attributes.GenreNames),
+		CustomGenres:    track.Resp.Attributes.GenreNames,
 		ItunesMediaType: &mediaType,
 		Lyrics:          lrc,
 		TrackNumber:     int16(track.Resp.Attributes.TrackNumber),
@@ -209,7 +213,10 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		}
 	}
 
-	if (track.PreType == "playlists" || track.PreType == "stations") && !r.Config.Metadata.Tags.UseSongInfoForPlaylist {
+	isPlaylistOrStation := track.PreType == "playlists" || track.PreType == "stations"
+	compilation := false
+	useCollectionTags := isPlaylistOrStation && !r.Config.Metadata.Tags.UseSongInfoForPlaylist
+	if useCollectionTags {
 		t.DiscNumber = 1
 		t.DiscTotal = 1
 		t.TrackNumber = int16(track.TaskNum)
@@ -220,30 +227,28 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 			t.AlbumSort = track.PlaylistData.Attributes.Name
 			t.AlbumArtistSort = track.PlaylistData.Attributes.ArtistName
 		}
-	} else if (track.PreType == "playlists" || track.PreType == "stations") && r.Config.Metadata.Tags.UseSongInfoForPlaylist {
-		t.DiscTotal = int16(track.DiscTotal)
-		t.TrackTotal = int16(track.AlbumData.Attributes.TrackCount)
-		t.AlbumArtist = track.AlbumData.Attributes.ArtistName
-		t.Custom["UPC"] = track.AlbumData.Attributes.Upc
-		t.Custom["LABEL"] = track.AlbumData.Attributes.RecordLabel
-		t.Date = track.AlbumData.Attributes.ReleaseDate
-		t.Copyright = track.AlbumData.Attributes.Copyright
-		t.Publisher = track.AlbumData.Attributes.RecordLabel
-		if r.Config.Metadata.Tags.SortOrder {
-			t.AlbumArtistSort = track.AlbumData.Attributes.ArtistName
-		}
 	} else {
+		album := &track.AlbumData.Attributes
+		compilation = album.IsCompilation
 		t.DiscTotal = int16(track.DiscTotal)
-		t.TrackTotal = int16(track.AlbumData.Attributes.TrackCount)
-		t.AlbumArtist = track.AlbumData.Attributes.ArtistName
-		t.Custom["UPC"] = track.AlbumData.Attributes.Upc
-		t.Date = track.AlbumData.Attributes.ReleaseDate
-		t.Copyright = track.AlbumData.Attributes.Copyright
-		t.Publisher = track.AlbumData.Attributes.RecordLabel
+		t.TrackTotal = int16(album.TrackCount)
+		t.AlbumArtist = album.ArtistName
+		t.Custom["UPC"] = album.Upc
+		t.Custom["BARCODE"] = album.Upc
+		t.ReplaceCustomValues["RELEASETYPE"] = track.AlbumData.ReleaseTypes(r.Config.Metadata.Tags.InferAlbumReleaseType)
+		if isPlaylistOrStation {
+			t.Custom["LABEL"] = album.RecordLabel
+		}
+		t.Date = album.ReleaseDate
+		t.Copyright = album.Copyright
+		t.Publisher = album.RecordLabel
 		if r.Config.Metadata.Tags.SortOrder {
-			t.AlbumArtistSort = track.AlbumData.Attributes.ArtistName
+			t.AlbumArtistSort = album.ArtistName
 		}
 	}
+	t.Compilation = &compilation
+
+	r.setMP4ArtistValues(t, track, useCollectionTags)
 
 	if track.Resp.Attributes.ContentRating == "explicit" {
 		t.ItunesAdvisory = mp4tag.ItunesAdvisoryExplicit
@@ -253,16 +258,49 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		t.ItunesAdvisory = mp4tag.ItunesAdvisoryNone
 	}
 
+	applySongCredits(t, track.Credits, r.Config.Metadata.Tags.SortOrder)
+
 	mp4, err := mp4tag.Open(track.SavePath)
 	if err != nil {
 		return err
 	}
 	defer mp4.Close()
-	err = mp4.Write(t, []string{})
+	var deleteTags []string
+	if len(t.CustomGenres) > 0 {
+		// Replace the legacy numeric genre when catalog text genres are available.
+		deleteTags = []string{"genre"}
+	}
+	err = mp4.Write(t, deleteTags)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (r *Runner) setMP4ArtistValues(tags *mp4tag.MP4Tags, track *model.Track, useCollectionTags bool) {
+	for _, artist := range track.Resp.Relationships.Artists.Data {
+		if strings.TrimSpace(artist.Attributes.Name) == "" {
+			// A partial relationship would omit a credited artist.
+			tags.Artists = nil
+			break
+		}
+		tags.Artists = append(tags.Artists, artist.Attributes.Name)
+	}
+	if !useCollectionTags {
+		for _, artist := range track.AlbumData.Relationships.Artists.Data {
+			if strings.TrimSpace(artist.Attributes.Name) == "" {
+				tags.AlbumArtists = nil
+				break
+			}
+			tags.AlbumArtists = append(tags.AlbumArtists, artist.Attributes.Name)
+		}
+	}
+	if r.Config.Metadata.Tags.SortOrder {
+		// The catalog supplies display names. Keep their existing sort fallback
+		// and match its order to the values written for each artist field.
+		tags.ArtistSorts = tags.Artists
+		tags.AlbumArtistSorts = tags.AlbumArtists
+	}
 }
 
 func (r *Runner) extractMvAudio(c string) (string, error) {
