@@ -59,8 +59,14 @@ func applySongCredits(tags *mp4tag.MP4Tags, credits *ampapi.SongCredits, sortOrd
 			tags.ComposerSorts = composers
 		}
 	}
-	if sortOrder && len(values["LYRICIST"]) > 0 {
-		values["LYRICISTSORT"] = values["LYRICIST"]
+	if sortOrder {
+		// LMS also reads conductor and remixer sort tags. Keep the sort
+		// values in the same order as the corresponding contributor names.
+		for _, role := range []string{"LYRICIST", "CONDUCTOR", "REMIXER"} {
+			if names := values[role]; len(names) > 0 {
+				values[role+"SORT"] = names
+			}
+		}
 	}
 	for tag, names := range values {
 		tags.ReplaceCustomValues[tag] = names

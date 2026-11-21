@@ -180,6 +180,8 @@ func TestWriteMP4TagsSongCredits(t *testing.T) {
 				}
 				if tt.sort {
 					wantCustom["LYRICISTSORT"] = wantCustom["LYRICIST"]
+					wantCustom["CONDUCTORSORT"] = []string{"Conductor A", "Conductor B"}
+					wantCustom["REMIXERSORT"] = []string{"Remixer"}
 				}
 			}
 			if !slices.Equal(tags.Composers, wantComposers) {
@@ -194,7 +196,8 @@ func TestWriteMP4TagsSongCredits(t *testing.T) {
 			}
 			for _, name := range []string{
 				"LYRICIST", "ARRANGER", "PRODUCER", "ENGINEER", "MIXER", "PERFORMER",
-				"LYRICISTSORT", "CONDUCTOR", "REMIXER", "DJMIXER", "DIRECTOR", "SONGWRITER",
+				"LYRICISTSORT", "CONDUCTOR", "CONDUCTORSORT", "REMIXER", "REMIXERSORT",
+				"DJMIXER", "DJMIXERSORT", "DIRECTOR", "SONGWRITER",
 			} {
 				var names []string
 				if first, ok := tags.Custom[name]; ok {
