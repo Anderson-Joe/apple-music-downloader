@@ -203,14 +203,6 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 			}
 			t.ItunesAlbumID = int32(albumID)
 		}
-
-		if len(track.Resp.Relationships.Artists.Data) > 0 {
-			artistID, err := strconv.ParseUint(track.Resp.Relationships.Artists.Data[0].ID, 10, 64)
-			if err != nil {
-				return err
-			}
-			t.ItunesArtistID = int32(artistID)
-		}
 	}
 
 	isPlaylistOrStation := track.PreType == "playlists" || track.PreType == "stations"
@@ -258,7 +250,7 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		t.ItunesAdvisory = mp4tag.ItunesAdvisoryNone
 	}
 
-	applySongCredits(t, track.Credits, r.Config.Metadata.Tags.SortOrder)
+	applySongCredits(t, track.Credits, r.Config.Metadata.Tags.SortOrder, r.Config.Metadata.Tags.ItunesID)
 	if r.Config.Metadata.Tags.SortOrder && len(t.ReplaceCustomValues["PERFORMER"]) == 0 && t.Custom["PERFORMER"] != "" {
 		t.ReplaceCustomValues["PERFORMERSORT"] = []string{t.Custom["PERFORMER"]}
 	}
@@ -281,21 +273,26 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 }
 
 func (r *Runner) setMP4ArtistValues(tags *mp4tag.MP4Tags, track *model.Track, useCollectionTags bool) {
+	var artistIDs, albumArtistIDs []string
 	for _, artist := range track.Resp.Relationships.Artists.Data {
 		if strings.TrimSpace(artist.Attributes.Name) == "" {
 			// A partial relationship would omit a credited artist.
 			tags.Artists = nil
+			artistIDs = nil
 			break
 		}
 		tags.Artists = append(tags.Artists, artist.Attributes.Name)
+		artistIDs = append(artistIDs, artist.ID)
 	}
 	if !useCollectionTags {
 		for _, artist := range track.AlbumData.Relationships.Artists.Data {
 			if strings.TrimSpace(artist.Attributes.Name) == "" {
 				tags.AlbumArtists = nil
+				albumArtistIDs = nil
 				break
 			}
 			tags.AlbumArtists = append(tags.AlbumArtists, artist.Attributes.Name)
+			albumArtistIDs = append(albumArtistIDs, artist.ID)
 		}
 	}
 	if r.Config.Metadata.Tags.SortOrder {
@@ -303,6 +300,14 @@ func (r *Runner) setMP4ArtistValues(tags *mp4tag.MP4Tags, track *model.Track, us
 		// and match its order to the values written for each artist field.
 		tags.ArtistSorts = tags.Artists
 		tags.AlbumArtistSorts = tags.AlbumArtists
+	}
+	if r.Config.Metadata.Tags.ItunesID {
+		tags.ItunesArtistIDs = parseContributorIDs(artistIDs)
+		// MP4 has no album-artist counterpart to the native track-artist atID.
+		if len(parseContributorIDs(albumArtistIDs)) == 0 {
+			albumArtistIDs = nil
+		}
+		tags.ReplaceCustomValues["ITUNESALBUMARTISTID"] = albumArtistIDs
 	}
 }
 

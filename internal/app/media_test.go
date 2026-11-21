@@ -365,15 +365,18 @@ func TestWriteMP4TagsNativeArtists(t *testing.T) {
 		useSongInfo bool
 		sort        bool
 		incomplete  bool
+		missingID   bool
+		noIDs       bool
 		wantTrack   []string
 		wantAlbum   []string
 	}{
 		{name: "album with sort values", source: "albums", sort: true, wantTrack: trackArtists, wantAlbum: albumArtists},
-		{name: "album without sort values", source: "albums", wantTrack: trackArtists, wantAlbum: albumArtists},
+		{name: "album without sort values or IDs", source: "albums", noIDs: true, wantTrack: trackArtists, wantAlbum: albumArtists},
 		{name: "playlist using original album", source: "playlists", useSongInfo: true, sort: true, wantTrack: trackArtists, wantAlbum: albumArtists},
 		{name: "playlist as album", source: "playlists", sort: true, wantTrack: trackArtists, wantAlbum: []string{"Collection artist"}},
 		{name: "station as album", source: "stations", sort: true, wantTrack: trackArtists, wantAlbum: []string{"Collection artist"}},
 		{name: "incomplete artist relationships", source: "albums", sort: true, incomplete: true, wantTrack: []string{"Track credit"}, wantAlbum: []string{"Album credit"}},
+		{name: "complete names with incomplete IDs", source: "albums", sort: true, missingID: true, wantTrack: trackArtists, wantAlbum: albumArtists},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "artists.m4a")
@@ -385,17 +388,18 @@ func TestWriteMP4TagsNativeArtists(t *testing.T) {
 			}
 			cfg := config.ConfigSet{}
 			cfg.Metadata.Tags.SortOrder = tt.sort
+			cfg.Metadata.Tags.ItunesID = !tt.noIDs
 			cfg.Metadata.Tags.UseSongInfoForPlaylist = tt.useSongInfo
-			track := &model.Track{SavePath: path, PreType: tt.source}
+			track := &model.Track{SavePath: path, PreType: tt.source, PreID: "101"}
 			if err := json.Unmarshal([]byte(`{
 				"attributes":{"artistName":"Track credit"},
-				"relationships":{"artists":{"data":[{"attributes":{"name":"Artist A"}},{"attributes":{"name":"Artist B"}}]}}
+				"relationships":{"artists":{"data":[{"id":"8","attributes":{"name":"Artist A"}},{"id":"3","attributes":{"name":"Artist B"}}]}}
 			}`), &track.Resp); err != nil {
 				t.Fatal(err)
 			}
 			if err := json.Unmarshal([]byte(`{
 				"attributes":{"artistName":"Album credit"},
-				"relationships":{"artists":{"data":[{"attributes":{"name":"Album A"}},{"attributes":{"name":"Album B"}}]}}
+				"relationships":{"artists":{"data":[{"id":"7","attributes":{"name":"Album A"}},{"id":"4","attributes":{"name":"Album B"}}]}}
 			}`), &track.AlbumData); err != nil {
 				t.Fatal(err)
 			}
@@ -403,6 +407,10 @@ func TestWriteMP4TagsNativeArtists(t *testing.T) {
 			if tt.incomplete {
 				track.Resp.Relationships.Artists.Data[1].Attributes.Name = ""
 				track.AlbumData.Relationships.Artists.Data[1].Attributes.Name = ""
+			}
+			if tt.missingID {
+				track.Resp.Relationships.Artists.Data[0].ID = ""
+				track.AlbumData.Relationships.Artists.Data[0].ID = ""
 			}
 			if err := NewRunner(cfg).writeMP4Tags(track, ""); err != nil {
 				t.Fatal(err)
@@ -419,6 +427,24 @@ func TestWriteMP4TagsNativeArtists(t *testing.T) {
 			var wantTrackSort, wantAlbumSort []string
 			if tt.sort {
 				wantTrackSort, wantAlbumSort = tt.wantTrack, tt.wantAlbum
+			}
+			var wantTrackIDs []uint64
+			var wantAlbumIDs []string
+			if !tt.noIDs && !tt.incomplete && !tt.missingID {
+				wantTrackIDs = []uint64{8, 3}
+				if tt.source == "albums" || tt.useSongInfo {
+					wantAlbumIDs = []string{"7", "4"}
+				}
+			}
+			if !slices.Equal(tags.ItunesArtistIDs, wantTrackIDs) {
+				t.Errorf("artist IDs = %v, want %v", tags.ItunesArtistIDs, wantTrackIDs)
+			}
+			var albumIDs []string
+			if first, ok := tags.Custom["ITUNESALBUMARTISTID"]; ok {
+				albumIDs = append([]string{first}, tags.OtherCustom["ITUNESALBUMARTISTID"]...)
+			}
+			if !slices.Equal(albumIDs, wantAlbumIDs) {
+				t.Errorf("album artist IDs = %v, want %v", albumIDs, wantAlbumIDs)
 			}
 			for _, field := range []struct {
 				name      string

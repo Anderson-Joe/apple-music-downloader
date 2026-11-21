@@ -6,6 +6,8 @@ github.com/Anderson-Joe/go-mp4tag v0.0.0-20261121084603-c121de4e7c44 h1:4PtVyxKR
 github.com/Anderson-Joe/go-mp4tag v0.0.0-20261121084603-c121de4e7c44/go.mod h1:xr8wQbKcyOfjTKMZw8KaKflY9kaMrkUQE1oLL17MDb8=
 github.com/Anderson-Joe/go-mp4tag v0.0.0-20261121104318-8410918362af h1:GuKT6cRLTS7snY3vEqq6jz+r5b80Lxn+7RuQDYL0/D8=
 github.com/Anderson-Joe/go-mp4tag v0.0.0-20261121104318-8410918362af/go.mod h1:xr8wQbKcyOfjTKMZw8KaKflY9kaMrkUQE1oLL17MDb8=
+github.com/Anderson-Joe/go-mp4tag v0.0.0-20261121111537-490348ae3955 h1:pX08pcBIHVoRUnNQYeWky9laIFObvozjbZ1fUkeDjsA=
+github.com/Anderson-Joe/go-mp4tag v0.0.0-20261121111537-490348ae3955/go.mod h1:xr8wQbKcyOfjTKMZw8KaKflY9kaMrkUQE1oLL17MDb8=
 github.com/Eyevinn/mp4ff v0.55.0 h1:wFShr5eqcJaVd15/uPMe747sAWPbz7dl2TfhusDx+Kk=
 github.com/Eyevinn/mp4ff v0.55.0/go.mod h1:AhC+bOI7GSZmzuN4zFY9U76qMedbHI+8BdQXWrC9+8U=
 github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2 h1:+vx7roKuyA63nhn5WAunQHLTznkw5W8b1Xc0dNjp83s=

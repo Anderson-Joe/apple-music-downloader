@@ -28,10 +28,10 @@ func TestMetadataIntegration(t *testing.T) {
 		"id":"1717034215","type":"albums",
 		"attributes":{"name":"Series [Original Television Soundtrack] - EP","artistName":"Album Artist","trackCount":6,
 			"upc":"0196871644518","releaseDate":"2023-11-26","isCompilation":true},
-		"relationships":{"artists":{"data":[{"attributes":{"name":"Album Artist A"}},{"attributes":{"name":"Album Artist B"}}]}}
+		"relationships":{"artists":{"data":[{"id":"3003","attributes":{"name":"Album Artist A"}},{"id":"3001","attributes":{"name":"Album Artist B"}}]}}
 	}`
 	const songCredits = `{
-		"composers":{"data":[{"attributes":{"name":"Composer A"}},{"attributes":{"name":"Composer B"}}]},
+		"composers":{"data":[{"id":"4294967297","attributes":{"name":"Composer A"}},{"id":"2001","attributes":{"name":"Composer B"}}]},
 		"credits":{"data":[
 			{"attributes":{"kind":"performer"},"relationships":{"credit-artists":{"data":[
 				{"attributes":{"name":"Singer A","roleNames":["Vocals"]}},
@@ -115,13 +115,18 @@ func TestMetadataIntegration(t *testing.T) {
 		}
 	}
 	wantCustomTags := map[string][]string{
-		"GENREID": {"14", "16"}, "RELEASETYPE": {"EP", "Compilation", "Soundtrack"},
+		"ITUNESALBUMARTISTID": {"3003", "3001"},
+		"GENREID":             {"14", "16"}, "RELEASETYPE": {"EP", "Compilation", "Soundtrack"},
 		"UPC": {"0196871644518"}, "BARCODE": {"0196871644518"},
 		"ISRC": {"HKA972302100"}, "RELEASETIME": {"2023-09-24"},
 		"LYRICIST": {"Writer A", "Writer B"}, "LYRICISTSORT": {"Writer A", "Writer B"},
 		"ARRANGER": {"Writer A", "Writer B"}, "PRODUCER": {"Producer A", "Producer B"},
 		"ENGINEER": {"Producer A"}, "MIXER": {"Producer B"},
 		"PERFORMER": {"Singer A (Vocals)", "Singer B (Guitar)"},
+	}
+	if !slices.Equal(tags.ItunesArtistIDs, []uint64{425208570, 425208571}) ||
+		!slices.Equal(tags.ItunesComposerIDs, []uint64{4294967297, 2001}) {
+		t.Errorf("artist IDs = %v, composer IDs = %v", tags.ItunesArtistIDs, tags.ItunesComposerIDs)
 	}
 	for field, values := range existingArtistTags {
 		wantCustomTags[field] = values
