@@ -2,6 +2,7 @@ package model
 
 import (
 	"amdl/internal/amp-api"
+	"amdl/internal/wrapper"
 )
 
 type Track struct {
@@ -25,6 +26,7 @@ type Track struct {
 
 	Resp         ampapi.TrackRespData
 	Credits      *ampapi.SongCredits
+	Playback     wrapper.WebplaybackData
 	PreType      string // 上级类型 专辑或者歌单
 	PreID        string // 上级ID
 	DiscTotal    int

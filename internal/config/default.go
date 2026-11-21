@@ -58,6 +58,7 @@ func Default() Config {
 			},
 			Tags: TagsConfig{
 				SortOrder:              true,
+				PlaybackTags:           true,
 				ItunesID:               true,
 				UseSongInfoForPlaylist: false,
 			},

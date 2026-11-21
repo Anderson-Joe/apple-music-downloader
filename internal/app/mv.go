@@ -52,7 +52,7 @@ func (r *Runner) mvDownloader(adamID string, saveDir string, token string, store
 		return nil
 	}
 
-	mvm3u8url, err := wrapper.GetWebplayback(r.Config.General.LiteServer, adamID)
+	playback, err := wrapper.New(r.Config.General.LiteServer).WebplaybackInfo(adamID)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (r *Runner) mvDownloader(adamID string, saveDir string, token string, store
 
 	defer os.Remove(vidPath)
 	defer os.Remove(audPath)
-	if err := r.downloadMVTracks(context.Background(), adamID, mvm3u8url, vidPath, audPath); err != nil {
+	if err := r.downloadMVTracks(context.Background(), adamID, playback.M3u8, vidPath, audPath); err != nil {
 		return err
 	}
 
@@ -87,7 +87,7 @@ func (r *Runner) mvDownloader(adamID string, saveDir string, token string, store
 	}
 	fmt.Printf("\rMV Remuxed.   \n")
 
-	if err := r.writeMVMP4Tags(mvOutPath, MVInfo, track, covPath); err != nil {
+	if err := r.writeMVMP4Tags(mvOutPath, MVInfo, track, covPath, playback); err != nil {
 		_ = os.Remove(mvOutPath)
 		fmt.Printf("MV tag writing failed: %v\n", err)
 		return err
@@ -161,7 +161,7 @@ func (r *Runner) downloadMVTrack(ctx context.Context, adamID, playlistURL string
 	return nil
 }
 
-func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, track *model.Track, coverPath string) error {
+func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, track *model.Track, coverPath string, playback wrapper.WebplaybackData) error {
 	if mvInfo == nil || len(mvInfo.Data) == 0 {
 		return errors.New("music video response contains no data")
 	}
@@ -172,14 +172,13 @@ func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, trac
 		Artist:      attrs.ArtistName,
 		Album:       attrs.AlbumName,
 		CustomGenre: firstGenre(attrs.GenreNames),
+		Performers:  []string{attrs.ArtistName},
 		Date:        attrs.ReleaseDate,
+		ReleaseDate: attrs.ReleaseDate,
+		ISRC:        attrs.Isrc,
 		TrackNumber: int16(attrs.TrackNumber),
 		DiscNumber:  int16(attrs.DiscNumber),
-		Custom: map[string]string{
-			"PERFORMER":   attrs.ArtistName,
-			"RELEASETIME": attrs.ReleaseDate,
-			"ISRC":        attrs.Isrc,
-		},
+		Custom:      map[string]string{},
 	}
 
 	switch {
@@ -190,7 +189,7 @@ func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, trac
 		tags.TrackNumber = int16(track.TaskNum)
 		tags.TrackTotal = int16(track.TaskTotal)
 		tags.AlbumArtist = track.PlaylistData.Attributes.ArtistName
-		tags.Custom["PERFORMER"] = track.Resp.Attributes.ArtistName
+		tags.Performers = []string{track.Resp.Attributes.ArtistName}
 	case track != nil:
 		tags.Album = track.AlbumData.Attributes.Name
 		tags.DiscNumber = int16(track.Resp.Attributes.DiscNumber)
@@ -198,10 +197,10 @@ func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, trac
 		tags.TrackNumber = int16(track.Resp.Attributes.TrackNumber)
 		tags.TrackTotal = int16(track.AlbumData.Attributes.TrackCount)
 		tags.AlbumArtist = track.AlbumData.Attributes.ArtistName
-		tags.Custom["PERFORMER"] = track.Resp.Attributes.ArtistName
+		tags.Performers = []string{track.Resp.Attributes.ArtistName}
 		tags.Custom["UPC"] = track.AlbumData.Attributes.Upc
 		tags.Copyright = track.AlbumData.Attributes.Copyright
-		tags.Publisher = track.AlbumData.Attributes.RecordLabel
+		tags.RecordLabel = track.AlbumData.Attributes.RecordLabel
 	}
 
 	if r.Config.Metadata.Tags.SortOrder {
@@ -219,6 +218,7 @@ func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, trac
 	default:
 		tags.ItunesAdvisory = mp4tag.ItunesAdvisoryNone
 	}
+	r.applyPlaybackTags(tags, playback)
 
 	if r.Config.Metadata.Artwork.Embed && coverPath != "" {
 		cover, err := os.ReadFile(coverPath)

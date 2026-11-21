@@ -14,6 +14,7 @@ type SongCredits struct {
 	Composers struct {
 		Next string `json:"next"`
 		Data []struct {
+			ID         string `json:"id"`
 			Attributes struct {
 				Name string `json:"name"`
 			} `json:"attributes"`

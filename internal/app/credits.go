@@ -2,6 +2,7 @@ package app
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	ampapi "amdl/internal/amp-api"
@@ -9,20 +10,27 @@ import (
 	"github.com/itouakirai/go-mp4tag"
 )
 
-func applySongCredits(tags *mp4tag.MP4Tags, credits *ampapi.SongCredits, sortOrder bool) {
+func applySongCredits(tags *mp4tag.MP4Tags, credits *ampapi.SongCredits, sortOrder, itunesID bool) {
 	if credits == nil {
 		return
 	}
 
 	var composers []string
+	var composerIDs []string
 	if credits.Composers.Next == "" {
+		seen := make(map[[2]string]bool)
 		for _, composer := range credits.Composers.Data {
 			name := strings.TrimSpace(composer.Attributes.Name)
 			if name == "" {
 				composers = nil
 				break
 			}
-			composers = appendCreditValue(composers, name)
+			key := [2]string{name, composer.ID}
+			if !seen[key] {
+				seen[key] = true
+				composers = append(composers, name)
+				composerIDs = append(composerIDs, composer.ID)
+			}
 		}
 	}
 
@@ -51,24 +59,52 @@ func applySongCredits(tags *mp4tag.MP4Tags, credits *ampapi.SongCredits, sortOrd
 	// composite songwriter credit. Keep the catalog display fallback as well.
 	if len(composers) == 0 && tags.Composer == "" {
 		composers = values["COMPOSER"]
+		composerIDs = nil
 	}
 	delete(values, "COMPOSER")
 	if len(composers) > 0 {
 		tags.Composers = composers
+		if itunesID {
+			tags.ItunesComposerIDs = parseContributorIDs(composerIDs)
+		}
 		if sortOrder {
 			tags.ComposerSorts = composers
 		}
 	}
 	for tag, names := range values {
-		if tag == "DIRECTOR" {
+		switch tag {
+		case "DIRECTOR":
 			tags.Directors = names
-		} else {
+		case "ARRANGER":
+			tags.Arrangers = names
+		case "CONDUCTOR":
+			tags.Conductors = names
+		case "ENGINEER":
+			tags.Engineers = names
+		case "PERFORMER":
+			tags.Performers = names
+		case "PRODUCER":
+			tags.Producers = names
+		default:
 			tags.ReplaceCustomValues[tag] = names
 		}
 		if sortOrder {
 			tags.ReplaceCustomValues[tag+"SORT"] = names
 		}
 	}
+}
+
+// Keep IDs positional. An incomplete sequence would associate an ID with the wrong name.
+func parseContributorIDs(values []string) []uint64 {
+	ids := make([]uint64, 0, len(values))
+	for _, value := range values {
+		id, err := strconv.ParseUint(value, 10, 63)
+		if err != nil || id == 0 {
+			return []uint64{}
+		}
+		ids = append(ids, id)
+	}
+	return ids
 }
 
 func appendCreditValue(values []string, value string) []string {

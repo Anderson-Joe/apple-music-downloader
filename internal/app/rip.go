@@ -9,6 +9,7 @@ import (
 	"amdl/internal/model"
 	"amdl/internal/widevine-rip"
 	"amdl/internal/widevine-rip/runv5"
+	"amdl/internal/wrapper"
 	"context"
 	"errors"
 	"fmt"
@@ -296,6 +297,13 @@ func (r *Runner) ripTrack(track *model.Track, token string, mediaUserToken strin
 		}
 		track.Credits = credits
 	}
+	if r.Config.Metadata.Tags.PlaybackTags && r.Config.General.LiteServer != "" {
+		playback, err := wrapper.New(r.Config.General.LiteServer).WebplaybackInfo(track.ID)
+		if err != nil {
+			fmt.Println("Failed to load optional playback tags:", err)
+		}
+		track.Playback = playback
+	}
 	err = r.writeMP4Tags(track, lrc)
 	if err != nil {
 		fmt.Println("\u26A0 Failed to write tags in media:", err)
@@ -480,9 +488,7 @@ func (r *Runner) ripStation(albumId string, token string, storefront string, med
 			TrackTotal:  1,
 			DiscNumber:  1,
 			DiscTotal:   1,
-			Custom: map[string]string{
-				"PERFORMER": "Apple Music Station",
-			},
+			Performers:  []string{"Apple Music Station"},
 		}
 		if r.Config.Metadata.Artwork.Embed && station.CoverPath != "" {
 			cover, err := os.ReadFile(station.CoverPath)

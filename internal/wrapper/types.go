@@ -1,5 +1,7 @@
 package wrapper
 
+import "encoding/json"
+
 // Response is the standard envelope returned by wrapper-lite endpoints.
 type Response[T any] struct {
 	Code int    `json:"code"`
@@ -38,7 +40,10 @@ type LyricsData struct {
 
 // WebplaybackData represents data returned by /webplayback.
 type WebplaybackData struct {
-	M3u8 string `json:"m3u8"`
+	M3u8     string          `json:"m3u8"`
+	XID      string          `json:"xid"`
+	Comments string          `json:"comments"`
+	Gapless  json.RawMessage `json:"gapless"`
 }
 
 // LicenseData represents data returned by /license.

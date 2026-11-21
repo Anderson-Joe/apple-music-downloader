@@ -62,8 +62,35 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Metadata.Tags.UseSongInfoForPlaylist {
 		t.Errorf("Metadata.Tags.UseSongInfoForPlaylist = %v, want false", cfg.Metadata.Tags.UseSongInfoForPlaylist)
 	}
+	if !cfg.Metadata.Tags.PlaybackTags {
+		t.Error("playback tags should be enabled by default")
+	}
 	if cfg.Convert.Format != "flac" {
 		t.Errorf("Convert.Format = %q, want 'flac'", cfg.Convert.Format)
+	}
+}
+
+func TestPlaybackTagsDefaultAndOverride(t *testing.T) {
+	for _, tt := range []struct {
+		name, config string
+		want         bool
+	}{
+		{"legacy config", "general: {}\n", true},
+		{"explicit opt-out", "metadata:\n  tags:\n    playback-tags: false\n", false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(path, []byte(tt.config), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := Load(LoadOptions{ConfigFile: path, DisableMissingWarnings: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.Metadata.Tags.PlaybackTags != tt.want {
+				t.Errorf("playback-tags = %v, want %v", cfg.Metadata.Tags.PlaybackTags, tt.want)
+			}
+		})
 	}
 }
 
@@ -429,4 +456,3 @@ func TestCustomConfigMissingDoesNotAutoCreate(t *testing.T) {
 		t.Errorf("Custom config file %s should not have been created", customFile)
 	}
 }
-
