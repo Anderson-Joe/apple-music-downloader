@@ -201,7 +201,8 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		}
 	}
 
-	if (track.PreType == "playlists" || track.PreType == "stations") && !r.Config.Metadata.Tags.UseSongInfoForPlaylist {
+	useCollectionTags := (track.PreType == "playlists" || track.PreType == "stations") && !r.Config.Metadata.Tags.UseSongInfoForPlaylist
+	if useCollectionTags {
 		t.DiscNumber = 1
 		t.DiscTotal = 1
 		t.TrackNumber = int16(track.TaskNum)
@@ -237,6 +238,8 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		}
 	}
 
+	r.setMP4ArtistValues(t, track, useCollectionTags)
+
 	if track.Resp.Attributes.ContentRating == "explicit" {
 		t.ItunesAdvisory = mp4tag.ItunesAdvisoryExplicit
 	} else if track.Resp.Attributes.ContentRating == "clean" {
@@ -255,6 +258,32 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		return err
 	}
 	return nil
+}
+
+func (r *Runner) setMP4ArtistValues(tags *mp4tag.MP4Tags, track *model.Track, useCollectionTags bool) {
+	for _, artist := range track.Resp.Relationships.Artists.Data {
+		if strings.TrimSpace(artist.Attributes.Name) == "" {
+			// A partial relationship would omit a credited artist.
+			tags.Artists = nil
+			break
+		}
+		tags.Artists = append(tags.Artists, artist.Attributes.Name)
+	}
+	if !useCollectionTags {
+		for _, artist := range track.AlbumData.Relationships.Artists.Data {
+			if strings.TrimSpace(artist.Attributes.Name) == "" {
+				tags.AlbumArtists = nil
+				break
+			}
+			tags.AlbumArtists = append(tags.AlbumArtists, artist.Attributes.Name)
+		}
+	}
+	if r.Config.Metadata.Tags.SortOrder {
+		// The catalog supplies display names. Keep their existing sort fallback
+		// and match its order to the values written for each artist field.
+		tags.ArtistSorts = tags.Artists
+		tags.AlbumArtistSorts = tags.AlbumArtists
+	}
 }
 
 func (r *Runner) extractMvAudio(c string) (string, error) {

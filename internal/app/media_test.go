@@ -1,13 +1,116 @@
 package app
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"amdl/internal/config"
+	defrag "amdl/internal/media/defrag"
+	"amdl/internal/model"
+
+	"github.com/itouakirai/go-mp4tag"
 )
+
+func TestWriteMP4TagsNativeArtists(t *testing.T) {
+	const fixture = "../media/mv/testdata/A48"
+	init, err := os.ReadFile(filepath.Join(fixture, "init.mp4"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	segment, err := os.ReadFile(filepath.Join(fixture, "1.m4s"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	audio := append(init, segment...)
+	trackArtists := []string{"Artist A", "Artist B"}
+	albumArtists := []string{"Album A", "Album B"}
+
+	for _, tt := range []struct {
+		name        string
+		source      string
+		useSongInfo bool
+		sort        bool
+		incomplete  bool
+		wantTrack   []string
+		wantAlbum   []string
+	}{
+		{name: "album with sort values", source: "albums", sort: true, wantTrack: trackArtists, wantAlbum: albumArtists},
+		{name: "album without sort values", source: "albums", wantTrack: trackArtists, wantAlbum: albumArtists},
+		{name: "playlist using original album", source: "playlists", useSongInfo: true, sort: true, wantTrack: trackArtists, wantAlbum: albumArtists},
+		{name: "playlist as album", source: "playlists", sort: true, wantTrack: trackArtists, wantAlbum: []string{"Collection artist"}},
+		{name: "station as album", source: "stations", sort: true, wantTrack: trackArtists, wantAlbum: []string{"Collection artist"}},
+		{name: "incomplete artist relationships", source: "albums", sort: true, incomplete: true, wantTrack: []string{"Track credit"}, wantAlbum: []string{"Album credit"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "artists.m4a")
+			if err := os.WriteFile(path, audio, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := defrag.DefragmentMP4(path); err != nil {
+				t.Fatal(err)
+			}
+			cfg := config.ConfigSet{}
+			cfg.Metadata.Tags.SortOrder = tt.sort
+			cfg.Metadata.Tags.UseSongInfoForPlaylist = tt.useSongInfo
+			track := &model.Track{SavePath: path, PreType: tt.source}
+			if err := json.Unmarshal([]byte(`{
+				"attributes":{"artistName":"Track credit"},
+				"relationships":{"artists":{"data":[{"attributes":{"name":"Artist A"}},{"attributes":{"name":"Artist B"}}]}}
+			}`), &track.Resp); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal([]byte(`{
+				"attributes":{"artistName":"Album credit"},
+				"relationships":{"artists":{"data":[{"attributes":{"name":"Album A"}},{"attributes":{"name":"Album B"}}]}}
+			}`), &track.AlbumData); err != nil {
+				t.Fatal(err)
+			}
+			track.PlaylistData.Attributes.ArtistName = "Collection artist"
+			if tt.incomplete {
+				track.Resp.Relationships.Artists.Data[1].Attributes.Name = ""
+				track.AlbumData.Relationships.Artists.Data[1].Attributes.Name = ""
+			}
+			if err := NewRunner(cfg).writeMP4Tags(track, ""); err != nil {
+				t.Fatal(err)
+			}
+			file, err := mp4tag.Open(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer file.Close()
+			tags, err := file.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			var wantTrackSort, wantAlbumSort []string
+			if tt.sort {
+				wantTrackSort, wantAlbumSort = tt.wantTrack, tt.wantAlbum
+			}
+			for _, field := range []struct {
+				name      string
+				got, want []string
+			}{
+				{"ARTIST", tags.Artists, tt.wantTrack},
+				{"ALBUMARTIST", tags.AlbumArtists, tt.wantAlbum},
+				{"ARTISTSORT", tags.ArtistSorts, wantTrackSort},
+				{"ALBUMARTISTSORT", tags.AlbumArtistSorts, wantAlbumSort},
+			} {
+				if !slices.Equal(field.got, field.want) {
+					t.Errorf("%s = %q, want %q", field.name, field.got, field.want)
+				}
+			}
+			for _, name := range []string{"ARTISTS", "ALBUMARTISTS", "ARTISTSSORT", "ALBUMARTISTSSORT"} {
+				if _, ok := tags.Custom[name]; ok {
+					t.Errorf("unexpected freeform %s tag", name)
+				}
+			}
+		})
+	}
+}
 
 func TestStreamAllowedCPC(t *testing.T) {
 	const master = `#EXTM3U
@@ -106,4 +209,3 @@ func TestSaveM3UPlaylist(t *testing.T) {
 		t.Fatalf("m3u8 missing tracks after startIdx, got: %s", content)
 	}
 }
-
