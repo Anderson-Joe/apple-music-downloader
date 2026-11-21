@@ -94,8 +94,8 @@ func TestWriteMP4TagsPreservesNativeGenres(t *testing.T) {
 				t.Fatalf("unexpected freeform %s tag", field)
 			}
 		}
-		if tags.Custom["ISRC"] != track.Resp.Attributes.Isrc {
-			t.Fatalf("ISRC = %q, want %q", tags.Custom["ISRC"], track.Resp.Attributes.Isrc)
+		if tags.ISRC != track.Resp.Attributes.Isrc {
+			t.Fatalf("native ISRC = %q, want %q", tags.ISRC, track.Resp.Attributes.Isrc)
 		}
 	}
 }

@@ -175,11 +175,10 @@ func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, trac
 		Performers:  []string{attrs.ArtistName},
 		Date:        attrs.ReleaseDate,
 		ReleaseDate: attrs.ReleaseDate,
+		ISRC:        attrs.Isrc,
 		TrackNumber: int16(attrs.TrackNumber),
 		DiscNumber:  int16(attrs.DiscNumber),
-		Custom: map[string]string{
-			"ISRC": attrs.Isrc,
-		},
+		Custom:      map[string]string{},
 	}
 
 	switch {
@@ -201,7 +200,7 @@ func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, trac
 		tags.Performers = []string{track.Resp.Attributes.ArtistName}
 		tags.Custom["UPC"] = track.AlbumData.Attributes.Upc
 		tags.Copyright = track.AlbumData.Attributes.Copyright
-		tags.Publisher = track.AlbumData.Attributes.RecordLabel
+		tags.RecordLabel = track.AlbumData.Attributes.RecordLabel
 	}
 
 	if r.Config.Metadata.Tags.SortOrder {

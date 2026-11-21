@@ -153,14 +153,13 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		Title:  track.Resp.Attributes.Name,
 		Artist: track.Resp.Attributes.ArtistName,
 		Custom: map[string]string{
-			"ISRC":  track.Resp.Attributes.Isrc,
-			"LABEL": "",
-			"UPC":   "",
+			"UPC": "",
 		},
 		ReplaceCustomValues: map[string][]string{
 			"RELEASETYPE": nil,
 		},
 		Composer:        track.Resp.Attributes.ComposerName,
+		ISRC:            track.Resp.Attributes.Isrc,
 		ReleaseDate:     track.Resp.Attributes.ReleaseDate,
 		CustomGenres:    track.Resp.Attributes.GenreNames,
 		ItunesGenreIDs:  parseContributorIDs(track.Resp.GenreIDs()),
@@ -175,6 +174,9 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 	}
 	if t.ReleaseDate != "" {
 		t.ReplaceCustomValues["RELEASETIME"] = nil
+	}
+	if t.ISRC != "" {
+		t.ReplaceCustomValues["ISRC"] = nil
 	}
 
 	if r.Config.Metadata.Artwork.Embed && track.CoverPath != "" {
@@ -233,12 +235,12 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		t.Custom["UPC"] = album.Upc
 		t.Custom["BARCODE"] = album.Upc
 		t.ReplaceCustomValues["RELEASETYPE"] = track.AlbumData.ReleaseTypes(r.Config.Metadata.Tags.InferAlbumReleaseType)
-		if isPlaylistOrStation {
-			t.Custom["LABEL"] = album.RecordLabel
+		t.RecordLabel = album.RecordLabel
+		if t.RecordLabel != "" {
+			t.ReplaceCustomValues["LABEL"] = nil
 		}
 		t.Date = album.ReleaseDate
 		t.Copyright = album.Copyright
-		t.Publisher = album.RecordLabel
 		if r.Config.Metadata.Tags.SortOrder {
 			t.AlbumArtistSort = album.ArtistName
 		}

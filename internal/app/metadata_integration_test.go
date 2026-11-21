@@ -28,7 +28,7 @@ func TestMetadataIntegration(t *testing.T) {
 	const album = `{
 		"id":"1717034215","type":"albums",
 		"attributes":{"name":"Series [Original Television Soundtrack] - EP","artistName":"Album Artist","trackCount":6,
-			"upc":"0196871644518","releaseDate":"2023-11-26","isCompilation":true},
+			"upc":"0196871644518","releaseDate":"2023-11-26","isCompilation":true,"recordLabel":"Test Label"},
 		"relationships":{"artists":{"data":[{"id":"3003","attributes":{"name":"Album Artist A"}},{"id":"3001","attributes":{"name":"Album Artist B"}}]}}
 	}`
 	const songCredits = `{
@@ -128,9 +128,11 @@ func TestMetadataIntegration(t *testing.T) {
 		"ITUNESALBUMARTISTID": {"3003", "3001"},
 		"RELEASETYPE":         {"EP", "Compilation", "Soundtrack"},
 		"UPC":                 {"0196871644518"}, "BARCODE": {"0196871644518"},
-		"ISRC":     {"HKA972302100"},
 		"LYRICIST": {"Writer A", "Writer B"}, "LYRICISTSORT": {"Writer A", "Writer B"},
 		"MIXER": {"Producer B"},
+	}
+	if tags.ISRC != "HKA972302100" || tags.RecordLabel != "Test Label" || tags.Publisher != "" {
+		t.Errorf("native ISRC=%q, label=%q, publisher=%q", tags.ISRC, tags.RecordLabel, tags.Publisher)
 	}
 	if !slices.Equal(tags.ItunesArtistIDs, []uint64{425208570, 425208571}) ||
 		!slices.Equal(tags.ItunesComposerIDs, []uint64{4294967297, 2001}) {
