@@ -1,5 +1,7 @@
 package ampapi
 
+import "strconv"
+
 type TrackResp struct {
 	Href string          `json:"href"`
 	Next string          `json:"next"`
@@ -52,6 +54,9 @@ type TrackRespData struct {
 		ComposerName string `json:"composerName"`
 	} `json:"attributes"`
 	Relationships struct {
+		Genres struct {
+			Data []CatalogGenre `json:"data"`
+		} `json:"genres"`
 		Artists struct {
 			Href string `json:"href"`
 			Data []struct {
@@ -100,4 +105,39 @@ type TrackRespData struct {
 			} `json:"data"`
 		} `json:"albums"`
 	} `json:"relationships"`
+}
+
+type CatalogGenre struct {
+	ID         string `json:"id"`
+	Attributes struct {
+		Name string `json:"name"`
+	} `json:"attributes"`
+}
+
+// GenreIDs returns catalog IDs in GenreNames order. It returns nil if any
+// name cannot be matched unambiguously in the localized relationship.
+func (t *TrackRespData) GenreIDs() []string {
+	if len(t.Attributes.GenreNames) == 0 || len(t.Relationships.Genres.Data) == 0 {
+		return nil
+	}
+	byName := make(map[string]string, len(t.Relationships.Genres.Data))
+	for _, genre := range t.Relationships.Genres.Data {
+		name, id := genre.Attributes.Name, genre.ID
+		if parsed, err := strconv.ParseUint(id, 10, 64); err != nil || parsed == 0 {
+			id = ""
+		}
+		if previous, found := byName[name]; found && previous != id {
+			id = ""
+		}
+		byName[name] = id
+	}
+	ids := make([]string, 0, len(t.Attributes.GenreNames))
+	for _, name := range t.Attributes.GenreNames {
+		if id := byName[name]; name != "" && id != "" {
+			ids = append(ids, id)
+		} else {
+			return nil
+		}
+	}
+	return ids
 }

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -35,8 +36,35 @@ func TestWriteMP4TagsPreservesNativeGenres(t *testing.T) {
 	runner := NewRunner(config.ConfigSet{})
 	track := &model.Track{SavePath: path}
 	track.Resp.Attributes.Isrc = "USAAA2600001"
-	for _, genres := range [][]string{{"Pop"}, {"Rock", "R&B/Soul"}, {"Jazz", "Blues"}} {
-		track.Resp.Attributes.GenreNames = genres
+	for _, tt := range []struct {
+		genres        []string
+		relationships string
+		ids           []string
+	}{
+		{genres: []string{"Pop"}, relationships: `[{"id":"14","attributes":{"name":"Pop"}}]`, ids: []string{"14"}},
+		{
+			genres:        []string{"華語流行樂", "音樂", "流行樂"},
+			relationships: `[{"id":"14","attributes":{"name":"流行樂"}},{"id":"1253","attributes":{"name":"華語流行樂"}},{"id":"34","attributes":{"name":"音樂"}}]`,
+			ids:           []string{"1253", "34", "14"},
+		},
+		{
+			genres:        []string{"Mandopop", "Music", "Pop"},
+			relationships: `[{"id":"34","attributes":{"name":"Music"}},{"id":"14","attributes":{"name":"Pop"}}]`,
+		},
+		{
+			genres:        []string{"Pop", "Music"},
+			relationships: `[{"id":"14","attributes":{"name":"Pop"}},{"id":"34","attributes":{"name":"Music"}}]`,
+			ids:           []string{"14", "34"},
+		},
+		{
+			genres:        []string{"Pop"},
+			relationships: `[{"id":"14","attributes":{"name":"Pop"}},{"id":"35","attributes":{"name":"Pop"}}]`,
+		},
+	} {
+		track.Resp.Attributes.GenreNames = tt.genres
+		if err := json.Unmarshal([]byte(tt.relationships), &track.Resp.Relationships.Genres.Data); err != nil {
+			t.Fatal(err)
+		}
 		if err := runner.writeMP4Tags(track, ""); err != nil {
 			t.Fatal(err)
 		}
@@ -49,8 +77,15 @@ func TestWriteMP4TagsPreservesNativeGenres(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !slices.Equal(tags.CustomGenres, genres) {
-			t.Fatalf("native genres = %q, want %q", tags.CustomGenres, genres)
+		if !slices.Equal(tags.CustomGenres, tt.genres) {
+			t.Fatalf("native genres = %q, want %q", tags.CustomGenres, tt.genres)
+		}
+		var ids []string
+		if first, ok := tags.Custom["GENREID"]; ok {
+			ids = append([]string{first}, tags.OtherCustom["GENREID"]...)
+		}
+		if !slices.Equal(ids, tt.ids) {
+			t.Fatalf("genre IDs = %q, want %q for %q", ids, tt.ids, tt.genres)
 		}
 		if _, ok := tags.Custom["GENRE"]; ok {
 			t.Fatal("unexpected freeform GENRE tag")

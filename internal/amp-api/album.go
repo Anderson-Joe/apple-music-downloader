@@ -30,7 +30,7 @@ func GetAlbumResp(storefront string, id string, language string, token string) (
 	query := url.Values{}
 	query.Set("omit[resource]", "autos")
 	query.Set("include", "tracks,artists,record-labels")
-	query.Set("include[songs]", "artists")
+	query.Set("include[songs]", "artists,genres")
 	//query.Set("fields[artists]", "name,artwork")
 	//query.Set("fields[albums:albums]", "artistName,artwork,name,releaseDate,url")
 	//query.Set("fields[record-labels]", "name")
@@ -77,7 +77,7 @@ func fetchTrackPage(next string, token string) (*TrackResp, error) {
 	req.Header.Set("Origin", "https://music.apple.com")
 	query := req.URL.Query()
 	query.Set("omit[resource]", "autos")
-	query.Set("include", "artists")
+	query.Set("include", "artists,genres")
 	query.Set("extend", "editorialVideo,extendedAssetUrls")
 	req.URL.RawQuery = query.Encode()
 
@@ -115,7 +115,7 @@ func GetAlbumRespByHref(href string, language string, token string) (*AlbumResp,
 	query := url.Values{}
 	query.Set("omit[resource]", "autos")
 	query.Set("include", "tracks,artists,record-labels")
-	query.Set("include[songs]", "artists")
+	query.Set("include[songs]", "artists,genres")
 	//query.Set("fields[artists]", "name,artwork")
 	//query.Set("fields[albums:albums]", "artistName,artwork,name,releaseDate,url")
 	//query.Set("fields[record-labels]", "name")
@@ -147,7 +147,7 @@ func GetAlbumRespByHref(href string, language string, token string) (*AlbumResp,
 			req.Header.Set("Origin", "https://music.apple.com")
 			query := req.URL.Query()
 			query.Set("omit[resource]", "autos")
-			query.Set("include", "artists")
+			query.Set("include", "artists,genres")
 			query.Set("extend", "editorialVideo,extendedAssetUrls")
 			req.URL.RawQuery = query.Encode()
 			do, err := download.Client.Do(req)
