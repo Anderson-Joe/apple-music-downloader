@@ -87,6 +87,7 @@ type ArtworkConfig struct {
 type TagsConfig struct {
 	SortOrder              bool `koanf:"sort-order"`
 	ItunesID               bool `koanf:"itunes-id"`
+	InferAlbumReleaseType  bool `koanf:"infer-album-release-type"`
 	UseSongInfoForPlaylist bool `koanf:"use-songinfo-for-playlist"`
 }
 

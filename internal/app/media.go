@@ -223,7 +223,7 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		t.AlbumArtist = album.ArtistName
 		t.Custom["UPC"] = album.Upc
 		t.Custom["BARCODE"] = album.Upc
-		t.ReplaceCustomValues["RELEASETYPE"] = track.AlbumData.ReleaseTypes()
+		t.ReplaceCustomValues["RELEASETYPE"] = track.AlbumData.ReleaseTypes(r.Config.Metadata.Tags.InferAlbumReleaseType)
 		if isPlaylistOrStation {
 			t.Custom["LABEL"] = album.RecordLabel
 		}
