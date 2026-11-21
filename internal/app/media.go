@@ -202,7 +202,9 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		}
 	}
 
-	if (track.PreType == "playlists" || track.PreType == "stations") && !r.Config.Metadata.Tags.UseSongInfoForPlaylist {
+	isPlaylistOrStation := track.PreType == "playlists" || track.PreType == "stations"
+	compilation := false
+	if isPlaylistOrStation && !r.Config.Metadata.Tags.UseSongInfoForPlaylist {
 		t.DiscNumber = 1
 		t.DiscTotal = 1
 		t.TrackNumber = int16(track.TaskNum)
@@ -213,30 +215,25 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 			t.AlbumSort = track.PlaylistData.Attributes.Name
 			t.AlbumArtistSort = track.PlaylistData.Attributes.ArtistName
 		}
-	} else if (track.PreType == "playlists" || track.PreType == "stations") && r.Config.Metadata.Tags.UseSongInfoForPlaylist {
-		t.DiscTotal = int16(track.DiscTotal)
-		t.TrackTotal = int16(track.AlbumData.Attributes.TrackCount)
-		t.AlbumArtist = track.AlbumData.Attributes.ArtistName
-		t.Custom["UPC"] = track.AlbumData.Attributes.Upc
-		t.Custom["LABEL"] = track.AlbumData.Attributes.RecordLabel
-		t.Date = track.AlbumData.Attributes.ReleaseDate
-		t.Copyright = track.AlbumData.Attributes.Copyright
-		t.Publisher = track.AlbumData.Attributes.RecordLabel
-		if r.Config.Metadata.Tags.SortOrder {
-			t.AlbumArtistSort = track.AlbumData.Attributes.ArtistName
-		}
 	} else {
+		album := &track.AlbumData.Attributes
+		compilation = album.IsCompilation
 		t.DiscTotal = int16(track.DiscTotal)
-		t.TrackTotal = int16(track.AlbumData.Attributes.TrackCount)
-		t.AlbumArtist = track.AlbumData.Attributes.ArtistName
-		t.Custom["UPC"] = track.AlbumData.Attributes.Upc
-		t.Date = track.AlbumData.Attributes.ReleaseDate
-		t.Copyright = track.AlbumData.Attributes.Copyright
-		t.Publisher = track.AlbumData.Attributes.RecordLabel
+		t.TrackTotal = int16(album.TrackCount)
+		t.AlbumArtist = album.ArtistName
+		t.Custom["UPC"] = album.Upc
+		t.Custom["BARCODE"] = album.Upc
+		if isPlaylistOrStation {
+			t.Custom["LABEL"] = album.RecordLabel
+		}
+		t.Date = album.ReleaseDate
+		t.Copyright = album.Copyright
+		t.Publisher = album.RecordLabel
 		if r.Config.Metadata.Tags.SortOrder {
-			t.AlbumArtistSort = track.AlbumData.Attributes.ArtistName
+			t.AlbumArtistSort = album.ArtistName
 		}
 	}
+	t.Compilation = &compilation
 
 	if track.Resp.Attributes.ContentRating == "explicit" {
 		t.ItunesAdvisory = mp4tag.ItunesAdvisoryExplicit
