@@ -31,16 +31,24 @@ func TestWriteMP4TagsReleaseMetadata(t *testing.T) {
 		useSongInfo  bool
 		compilation  bool
 		upc          string
+		albumName    string
+		isSingle     bool
+		wantType     string
 		wantBarcode  string
 		wantCompiled bool
 	}{
 		{name: "compilation album", source: "albums", compilation: true, upc: "0196871644518", wantBarcode: "0196871644518", wantCompiled: true},
 		{name: "regular album", source: "albums", upc: "0196871486996", wantBarcode: "0196871486996"},
+		{name: "single", source: "albums", albumName: "唯一 - Single", isSingle: true, upc: "196871486996", wantBarcode: "196871486996", wantType: "Single"},
+		{name: "EP", source: "albums", albumName: "T.I.M.E. - EP", upc: "196871644518", wantBarcode: "196871644518", wantType: "EP"},
+		{name: "unmarked one-track release", source: "albums", albumName: "Long Suite", isSingle: true},
+		{name: "EP marker takes precedence for a one-track release", source: "albums", albumName: "Long Suite - EP", isSingle: true, wantType: "EP"},
+		{name: "nonfinal text is not a type marker", source: "albums", albumName: "Studio - EP Sessions"},
 		{name: "missing UPC", source: "albums", compilation: true, wantCompiled: true},
-		{name: "playlist using album", source: "playlists", useSongInfo: true, compilation: true, upc: "0196871644518", wantBarcode: "0196871644518", wantCompiled: true},
-		{name: "playlist as album", source: "playlists", compilation: true, upc: "0196871644518"},
-		{name: "station using album", source: "stations", useSongInfo: true, compilation: true, upc: "0196871644518", wantBarcode: "0196871644518", wantCompiled: true},
-		{name: "station as album", source: "stations", compilation: true, upc: "0196871644518"},
+		{name: "playlist using album", source: "playlists", useSongInfo: true, compilation: true, upc: "0196871644518", albumName: "Release - EP", wantBarcode: "0196871644518", wantCompiled: true, wantType: "EP"},
+		{name: "playlist as album", source: "playlists", compilation: true, upc: "0196871644518", albumName: "Release - EP"},
+		{name: "station using album", source: "stations", useSongInfo: true, compilation: true, upc: "0196871644518", albumName: "Release - Single", wantBarcode: "0196871644518", wantCompiled: true, wantType: "Single"},
+		{name: "station as album", source: "stations", compilation: true, upc: "0196871644518", albumName: "Release - Single"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "release.m4a")
@@ -55,6 +63,8 @@ func TestWriteMP4TagsReleaseMetadata(t *testing.T) {
 			track := &model.Track{SavePath: path, PreType: tt.source}
 			track.AlbumData.Attributes.Upc = tt.upc
 			track.AlbumData.Attributes.IsCompilation = tt.compilation
+			track.AlbumData.Attributes.Name = tt.albumName
+			track.AlbumData.Attributes.IsSingle = tt.isSingle
 			if err := NewRunner(cfg).writeMP4Tags(track, ""); err != nil {
 				t.Fatal(err)
 			}
@@ -69,6 +79,9 @@ func TestWriteMP4TagsReleaseMetadata(t *testing.T) {
 			}
 			if barcode, upc := tags.Custom["BARCODE"], tags.Custom["UPC"]; barcode != tt.wantBarcode || upc != tt.wantBarcode {
 				t.Fatalf("BARCODE = %q, UPC = %q, want %q for both", barcode, upc, tt.wantBarcode)
+			}
+			if releaseType, present := tags.Custom["RELEASETYPE"]; releaseType != tt.wantType || present != (tt.wantType != "") {
+				t.Errorf("RELEASETYPE = %q (present = %t), want %q", releaseType, present, tt.wantType)
 			}
 			if tt.wantCompiled {
 				if tags.Compilation == nil || !*tags.Compilation {
