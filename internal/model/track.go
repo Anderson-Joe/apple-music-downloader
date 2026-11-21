@@ -24,6 +24,7 @@ type Track struct {
 	CoverPath  string
 
 	Resp         ampapi.TrackRespData
+	Credits      *ampapi.SongCredits
 	PreType      string // 上级类型 专辑或者歌单
 	PreID        string // 上级ID
 	DiscTotal    int

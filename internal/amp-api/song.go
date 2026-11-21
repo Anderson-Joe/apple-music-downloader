@@ -1,6 +1,7 @@
 package ampapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,13 +20,10 @@ func GetSongResp(storefront string, id string, language string, token string) (*
 		}
 	}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://amp-api.music.apple.com/v1/catalog/%s/songs/%s", storefront, id), nil)
+	req, err := newCatalogSongRequest(context.Background(), storefront, id, token)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-	req.Header.Set("Origin", "https://music.apple.com")
 	query := url.Values{}
 	//query.Set("omit[resource]", "autos")
 	query.Set("include", "albums,artists")
@@ -51,6 +49,17 @@ func GetSongResp(storefront string, id string, language string, token string) (*
 		return nil, err
 	}
 	return obj, nil
+}
+
+func newCatalogSongRequest(ctx context.Context, storefront, id, token string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://amp-api.music.apple.com/v1/catalog/%s/songs/%s", url.PathEscape(storefront), url.PathEscape(id)), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+	req.Header.Set("Origin", "https://music.apple.com")
+	return req, nil
 }
 
 type SongResp struct {
