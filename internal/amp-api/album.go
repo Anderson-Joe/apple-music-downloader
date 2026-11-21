@@ -251,3 +251,17 @@ type AlbumRespData struct {
 		Tracks TrackResp `json:"tracks"`
 	} `json:"relationships"`
 }
+
+// ReleaseType recognizes the suffixes specified by the Apple Music Style
+// Guide. The isSingle flag only describes the number of songs.
+func (a *AlbumRespData) ReleaseType() string {
+	name := strings.ToLower(strings.TrimSpace(a.Attributes.Name))
+	switch {
+	case strings.HasSuffix(name, " - ep"):
+		return "EP"
+	case strings.HasSuffix(name, " - single"):
+		return "Single"
+	default:
+		return ""
+	}
+}
