@@ -7,7 +7,82 @@ import (
 	"testing"
 
 	"amdl/internal/config"
+	defrag "amdl/internal/media/defrag"
+	"amdl/internal/model"
+
+	"github.com/itouakirai/go-mp4tag"
 )
+
+func TestWriteMP4TagsReleaseMetadata(t *testing.T) {
+	const fixture = "../media/mv/testdata/A48"
+	init, err := os.ReadFile(filepath.Join(fixture, "init.mp4"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	segment, err := os.ReadFile(filepath.Join(fixture, "1.m4s"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	audio := append(init, segment...)
+
+	for _, tt := range []struct {
+		name         string
+		source       string
+		useSongInfo  bool
+		compilation  bool
+		upc          string
+		wantBarcode  string
+		wantCompiled bool
+	}{
+		{name: "compilation album", source: "albums", compilation: true, upc: "0196871644518", wantBarcode: "0196871644518", wantCompiled: true},
+		{name: "regular album", source: "albums", upc: "0196871486996", wantBarcode: "0196871486996"},
+		{name: "missing UPC", source: "albums", compilation: true, wantCompiled: true},
+		{name: "playlist using album", source: "playlists", useSongInfo: true, compilation: true, upc: "0196871644518", wantBarcode: "0196871644518", wantCompiled: true},
+		{name: "playlist as album", source: "playlists", compilation: true, upc: "0196871644518"},
+		{name: "station using album", source: "stations", useSongInfo: true, compilation: true, upc: "0196871644518", wantBarcode: "0196871644518", wantCompiled: true},
+		{name: "station as album", source: "stations", compilation: true, upc: "0196871644518"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "release.m4a")
+			if err := os.WriteFile(path, audio, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := defrag.DefragmentMP4(path); err != nil {
+				t.Fatal(err)
+			}
+			cfg := config.ConfigSet{}
+			cfg.Metadata.Tags.UseSongInfoForPlaylist = tt.useSongInfo
+			track := &model.Track{SavePath: path, PreType: tt.source}
+			track.AlbumData.Attributes.Upc = tt.upc
+			track.AlbumData.Attributes.IsCompilation = tt.compilation
+			if err := NewRunner(cfg).writeMP4Tags(track, ""); err != nil {
+				t.Fatal(err)
+			}
+			file, err := mp4tag.Open(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer file.Close()
+			tags, err := file.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if barcode, upc := tags.Custom["BARCODE"], tags.Custom["UPC"]; barcode != tt.wantBarcode || upc != tt.wantBarcode {
+				t.Fatalf("BARCODE = %q, UPC = %q, want %q for both", barcode, upc, tt.wantBarcode)
+			}
+			if tt.wantCompiled {
+				if tags.Compilation == nil || !*tags.Compilation {
+					t.Fatal("expected an enabled native compilation tag")
+				}
+			} else if tags.Compilation != nil {
+				t.Fatal("expected the compilation tag to be absent")
+			}
+			if _, ok := tags.Custom["COMPILATION"]; ok {
+				t.Fatal("unexpected freeform compilation tag")
+			}
+		})
+	}
+}
 
 func TestStreamAllowedCPC(t *testing.T) {
 	const master = `#EXTM3U
@@ -106,4 +181,3 @@ func TestSaveM3UPlaylist(t *testing.T) {
 		t.Fatalf("m3u8 missing tracks after startIdx, got: %s", content)
 	}
 }
-
