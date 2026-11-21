@@ -33,6 +33,7 @@ func TestWriteMP4TagsReleaseMetadata(t *testing.T) {
 		compilation  bool
 		upc          string
 		albumName    string
+		songName     string
 		isSingle     bool
 		wantTypes    []string
 		wantBarcode  string
@@ -49,6 +50,14 @@ func TestWriteMP4TagsReleaseMetadata(t *testing.T) {
 		{name: "soundtrack score", source: "albums", albumName: "Barbie (Score from the Original Motion Picture Soundtrack)", wantTypes: []string{"Soundtrack"}},
 		{name: "compiled TV soundtrack", source: "albums", compilation: true, albumName: "Queen of Tears (Original Television Soundtrack) Special", wantCompiled: true, wantTypes: []string{"Compilation", "Soundtrack"}},
 		{name: "soundtrack EP", source: "albums", albumName: "Series [Original Television Soundtrack] - EP", wantTypes: []string{"EP", "Soundtrack"}},
+		{name: "live acoustic release", source: "albums", albumName: "MTV Unplugged In New York (Live Acoustic)", wantTypes: []string{"Live"}},
+		{name: "live EP", source: "albums", albumName: "Sessions (Live at the Theatre) - EP", wantTypes: []string{"EP", "Live"}},
+		{name: "remixes EP", source: "albums", albumName: "Out of This World (Remixes) - EP", wantTypes: []string{"EP", "Remix"}},
+		{name: "named remix", source: "albums", albumName: "siren (ABSOLUTE. Remix) - Single", wantTypes: []string{"Single", "Remix"}},
+		{name: "deduplicate independent versions", source: "albums", albumName: "Sessions (Live) [Live at the Theatre] [Remix] - EP", wantTypes: []string{"EP", "Live", "Remix"}},
+		{name: "live track does not classify its album", source: "albums", albumName: "Studio Album", songName: "Bonus Track (Live)"},
+		{name: "remix track does not classify its album", source: "albums", albumName: "Studio Album", songName: "Bonus Track (Remix)"},
+		{name: "remaster is not a remix", source: "albums", albumName: "Studio Album (2022 Remaster)"},
 		{name: "missing UPC", source: "albums", compilation: true, wantCompiled: true, wantTypes: []string{"Compilation"}},
 		{name: "playlist using album", source: "playlists", useSongInfo: true, compilation: true, upc: "0196871644518", albumName: "Release - EP", wantBarcode: "0196871644518", wantCompiled: true, wantTypes: []string{"EP", "Compilation"}},
 		{name: "playlist as album", source: "playlists", compilation: true, upc: "0196871644518", albumName: "Release - EP"},
@@ -66,6 +75,7 @@ func TestWriteMP4TagsReleaseMetadata(t *testing.T) {
 			cfg := config.ConfigSet{}
 			cfg.Metadata.Tags.UseSongInfoForPlaylist = tt.useSongInfo
 			track := &model.Track{SavePath: path, PreType: tt.source}
+			track.Resp.Attributes.Name = tt.songName
 			track.AlbumData.Attributes.Upc = tt.upc
 			track.AlbumData.Attributes.IsCompilation = tt.compilation
 			track.AlbumData.Attributes.Name = tt.albumName
