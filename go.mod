@@ -57,4 +57,4 @@ require (
 	gopkg.in/yaml.v2 v2.2.8
 )
 
-replace github.com/itouakirai/go-mp4tag => github.com/Anderson-Joe/go-mp4tag v0.0.0-20261121084603-c121de4e7c44
+replace github.com/itouakirai/go-mp4tag => github.com/Anderson-Joe/go-mp4tag v0.0.0-20261121104318-8410918362af

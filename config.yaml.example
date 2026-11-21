@@ -74,7 +74,7 @@ metadata:
     dl-for-playlist: false                # Download separate album cover image for playlists
 
   tags:
-    sort-order: true                      # Write iTunes sort order tags (artist, album artist, album name)
+    sort-order: true                      # Write sort tags for titles, artists, albums, and credited contributors
     itunes-id: true                       # Write iTunes catalog IDs into metadata
     infer-album-release-type: false       # Write Album when catalog tracks rule out Single and EP
     credits: false                        # Fetch and embed Apple Music song credits

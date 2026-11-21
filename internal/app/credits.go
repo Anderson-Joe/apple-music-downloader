@@ -28,6 +28,7 @@ func applySongCredits(tags *mp4tag.MP4Tags, credits *ampapi.SongCredits, sortOrd
 
 	values := make(map[string][]string)
 	for _, category := range credits.Credits.Data {
+		kind := category.Attributes.Kind
 		for _, artist := range category.Relationships.Artists.Data {
 			name := strings.TrimSpace(artist.Attributes.Name)
 			if name == "" {
@@ -35,10 +36,11 @@ func applySongCredits(tags *mp4tag.MP4Tags, credits *ampapi.SongCredits, sortOrd
 			}
 			for _, label := range artist.Attributes.Roles {
 				label = strings.TrimSpace(label)
-				if category.Attributes.Kind == "performer" && label != "" {
+				if kind == "performer" && label != "" {
 					value := name + " (" + label + ")"
 					values["PERFORMER"] = appendCreditValue(values["PERFORMER"], value)
-				} else if tag := creditTag(strings.ToLower(label)); tag != "" {
+				}
+				if tag := creditTag(kind, strings.ToLower(label)); tag != "" {
 					values[tag] = appendCreditValue(values[tag], name)
 				}
 			}
@@ -57,11 +59,15 @@ func applySongCredits(tags *mp4tag.MP4Tags, credits *ampapi.SongCredits, sortOrd
 			tags.ComposerSorts = composers
 		}
 	}
-	if sortOrder && len(values["LYRICIST"]) > 0 {
-		values["LYRICISTSORT"] = values["LYRICIST"]
-	}
 	for tag, names := range values {
-		tags.ReplaceCustomValues[tag] = names
+		if tag == "DIRECTOR" {
+			tags.Directors = names
+		} else {
+			tags.ReplaceCustomValues[tag] = names
+		}
+		if sortOrder {
+			tags.ReplaceCustomValues[tag+"SORT"] = names
+		}
 	}
 }
 
@@ -74,7 +80,25 @@ func appendCreditValue(values []string, value string) []string {
 
 // The web catalog localizes role labels. Map explicit roles rather than
 // inferring a composer or lyricist from the generic Songwriter label.
-func creditTag(label string) string {
+func creditTag(kind, label string) string {
+	switch label {
+	case "director", "導演", "导演":
+		return "DIRECTOR"
+	}
+	if kind == "performer" {
+		// Apple uses 混音師 for Remixer in performer credits. The same
+		// label in production credits refers to a mixer.
+		switch label {
+		case "remixer", "混音師", "混音师":
+			return "REMIXER"
+		case "conductor", "指揮", "指挥":
+			return "CONDUCTOR"
+		case "dj mixer":
+			return "DJMIXER"
+		default:
+			return ""
+		}
+	}
 	switch label {
 	case "composer", "作曲家", "作曲":
 		return "COMPOSER"
