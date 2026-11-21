@@ -60,7 +60,11 @@ func applySongCredits(tags *mp4tag.MP4Tags, credits *ampapi.SongCredits, sortOrd
 		}
 	}
 	for tag, names := range values {
-		tags.ReplaceCustomValues[tag] = names
+		if tag == "DIRECTOR" {
+			tags.Directors = names
+		} else {
+			tags.ReplaceCustomValues[tag] = names
+		}
 		if sortOrder {
 			tags.ReplaceCustomValues[tag+"SORT"] = names
 		}
@@ -77,6 +81,10 @@ func appendCreditValue(values []string, value string) []string {
 // The web catalog localizes role labels. Map explicit roles rather than
 // inferring a composer or lyricist from the generic Songwriter label.
 func creditTag(kind, label string) string {
+	switch label {
+	case "director", "導演", "导演":
+		return "DIRECTOR"
+	}
 	if kind == "performer" {
 		// Apple uses 混音師 for Remixer in performer credits. The same
 		// label in production credits refers to a mixer.

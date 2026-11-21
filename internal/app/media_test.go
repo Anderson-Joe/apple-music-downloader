@@ -122,7 +122,9 @@ func TestWriteMP4TagsSongCredits(t *testing.T) {
 			]}}},
 			{"attributes":{"kind":"production-and-engineering"},"relationships":{"credit-artists":{"data":[
 				{"attributes":{"name":"Producer A","roleNames":["Producer","Mastering Engineer"]}},
-				{"attributes":{"name":"Producer B","roleNames":["製作人","混音師","Creative Director"]}}
+				{"attributes":{"name":"Producer B","roleNames":["製作人","混音師","Creative Director"]}},
+				{"attributes":{"name":"Director A","roleNames":["Director","導演"]}},
+				{"attributes":{"name":"Director B","roleNames":["导演"]}}
 			]}}}
 		]}
 	}`), &credits); err != nil {
@@ -160,9 +162,11 @@ func TestWriteMP4TagsSongCredits(t *testing.T) {
 				t.Fatal(err)
 			}
 			wantComposers := []string{"Catalog composers"}
+			var wantDirectors []string
 			wantCustom := map[string][]string{"PERFORMER": {"Display artist"}}
 			if tt.credits != nil {
 				wantComposers = []string{"Composer A", "Composer B"}
+				wantDirectors = []string{"Director A", "Director B"}
 				wantCustom = map[string][]string{
 					"LYRICIST":  {"Lyricist A", "Lyricist B"},
 					"ARRANGER":  {"Lyricist A", "Lyricist B"},
@@ -188,12 +192,16 @@ func TestWriteMP4TagsSongCredits(t *testing.T) {
 					wantCustom["CONDUCTORSORT"] = wantCustom["CONDUCTOR"]
 					wantCustom["REMIXERSORT"] = wantCustom["REMIXER"]
 					wantCustom["DJMIXERSORT"] = wantCustom["DJMIXER"]
+					wantCustom["DIRECTORSORT"] = wantDirectors
 				}
 			} else if tt.sort {
 				wantCustom["PERFORMERSORT"] = []string{"Display artist"}
 			}
 			if !slices.Equal(tags.Composers, wantComposers) {
 				t.Errorf("COMPOSER = %q, want %q", tags.Composers, wantComposers)
+			}
+			if !slices.Equal(tags.Directors, wantDirectors) {
+				t.Errorf("native DIRECTOR = %q, want %q", tags.Directors, wantDirectors)
 			}
 			var wantComposerSort []string
 			if tt.sort {
