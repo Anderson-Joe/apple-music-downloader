@@ -214,12 +214,18 @@ func TestWriteMP4TagsReleaseMetadata(t *testing.T) {
 		albumName    string
 		songName     string
 		isSingle     bool
+		inferAlbum   bool
+		albumSongs   int
 		wantTypes    []string
 		wantBarcode  string
 		wantCompiled bool
 	}{
 		{name: "compilation album", source: "albums", compilation: true, upc: "0196871644518", wantBarcode: "0196871644518", wantCompiled: true, wantTypes: []string{"Compilation"}},
 		{name: "regular album", source: "albums", upc: "0196871486996", wantBarcode: "0196871486996"},
+		{name: "album fallback enabled", source: "albums", albumSongs: 7, inferAlbum: true, wantTypes: []string{"Album"}},
+		{name: "album fallback disabled", source: "albums", albumSongs: 7},
+		{name: "playlist grouping skips album fallback", source: "playlists", albumSongs: 7, inferAlbum: true},
+		{name: "playlist using original album allows fallback", source: "playlists", useSongInfo: true, albumSongs: 7, inferAlbum: true, wantTypes: []string{"Album"}},
 		{name: "single", source: "albums", albumName: "唯一 - Single", isSingle: true, upc: "196871486996", wantBarcode: "196871486996", wantTypes: []string{"Single"}},
 		{name: "EP", source: "albums", albumName: "T.I.M.E. - EP", upc: "196871644518", wantBarcode: "196871644518", wantTypes: []string{"EP"}},
 		{name: "unmarked one-track release", source: "albums", albumName: "Long Suite", isSingle: true},
@@ -253,12 +259,21 @@ func TestWriteMP4TagsReleaseMetadata(t *testing.T) {
 			}
 			cfg := config.ConfigSet{}
 			cfg.Metadata.Tags.UseSongInfoForPlaylist = tt.useSongInfo
+			cfg.Metadata.Tags.InferAlbumReleaseType = tt.inferAlbum
 			track := &model.Track{SavePath: path, PreType: tt.source}
 			track.Resp.Attributes.Name = tt.songName
 			track.AlbumData.Attributes.Upc = tt.upc
 			track.AlbumData.Attributes.IsCompilation = tt.compilation
 			track.AlbumData.Attributes.Name = tt.albumName
 			track.AlbumData.Attributes.IsSingle = tt.isSingle
+			if tt.albumSongs > 0 {
+				track.AlbumData.Type = "albums"
+				track.AlbumData.Attributes.IsComplete = true
+				track.AlbumData.Attributes.TrackCount = tt.albumSongs
+				for range tt.albumSongs {
+					track.AlbumData.Relationships.Tracks.Data = append(track.AlbumData.Relationships.Tracks.Data, ampapi.TrackRespData{Type: "songs"})
+				}
+			}
 			if err := NewRunner(cfg).writeMP4Tags(track, ""); err != nil {
 				t.Fatal(err)
 			}

@@ -62,6 +62,7 @@ func GetAlbumResp(storefront string, id string, language string, token string) (
 			obj.Data[0].Relationships.Tracks.Data = append(obj.Data[0].Relationships.Tracks.Data, obj2.Data...)
 			next = obj2.Next
 			if len(next) == 0 {
+				obj.Data[0].Relationships.Tracks.Next = ""
 				break
 			}
 		}
@@ -168,6 +169,7 @@ func GetAlbumRespByHref(href string, language string, token string) (*AlbumResp,
 			obj.Data[0].Relationships.Tracks.Data = append(obj.Data[0].Relationships.Tracks.Data, obj2.Data...)
 			next = obj2.Next
 			if len(next) == 0 {
+				obj.Data[0].Relationships.Tracks.Next = ""
 				break
 			}
 		}
@@ -256,10 +258,9 @@ type AlbumRespData struct {
 
 var releaseVersion = regexp.MustCompile(`\(([^()]*)\)|\[([^\[\]]*)\]`)
 
-// ReleaseTypes returns explicit release classifications in primary-then-secondary
-// order. The Apple Music Style Guide uses title suffixes for singles and EPs
-// and bracketed version information for release editions.
-func (a *AlbumRespData) ReleaseTypes() []string {
+// ReleaseTypes returns release classifications in primary-then-secondary order.
+// Explicit Apple Music title markers take precedence over the optional fallback.
+func (a *AlbumRespData) ReleaseTypes(inferAlbum bool) []string {
 	name := strings.ToLower(strings.TrimSpace(a.Attributes.Name))
 	var types []string
 	switch {
@@ -267,6 +268,8 @@ func (a *AlbumRespData) ReleaseTypes() []string {
 		types = append(types, "EP")
 	case strings.HasSuffix(name, " - single"):
 		types = append(types, "Single")
+	case inferAlbum && a.excludesSingleAndEP():
+		types = append(types, "Album")
 	}
 	if a.Attributes.IsCompilation {
 		types = append(types, "Compilation")
@@ -278,6 +281,44 @@ func (a *AlbumRespData) ReleaseTypes() []string {
 		}
 	}
 	return types
+}
+
+func (a *AlbumRespData) excludesSingleAndEP() bool {
+	attrs, tracks := &a.Attributes, &a.Relationships.Tracks
+	if a.Type != "albums" || !attrs.IsComplete || attrs.IsSingle ||
+		tracks.Next != "" || len(tracks.Data) != attrs.TrackCount {
+		return false
+	}
+
+	// Apple's single and EP rules count songs, excluding bonus music videos.
+	const singleSongLimitMS = 10 * 60 * 1000
+	const epLimitMS = 30 * 60 * 1000
+	var totalMS int64
+	var songs int
+	var hasLongSong, missingDuration bool
+	for _, track := range tracks.Data {
+		switch track.Type {
+		case "music-videos":
+			continue
+		case "songs":
+			songs++
+		default:
+			return false
+		}
+		duration := track.Attributes.DurationInMillis
+		if duration <= 0 {
+			missingDuration = true
+			continue
+		}
+		totalMS += int64(duration)
+		hasLongSong = hasLongSong || duration >= singleSongLimitMS
+	}
+	if songs > 6 {
+		return true
+	}
+	// For up to six songs, a running time above 30 minutes rules out EP.
+	// One to three songs still need a song of at least 10 minutes to rule out Single.
+	return !missingDuration && totalMS > epLimitMS && (songs >= 4 || hasLongSong)
 }
 
 func versionReleaseType(version string) string {
