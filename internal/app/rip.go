@@ -289,6 +289,13 @@ func (r *Runner) ripTrack(track *model.Track, token string, mediaUserToken strin
 		}
 	}
 
+	if r.Config.Metadata.Tags.Credits {
+		credits, err := ampapi.GetSongCredits(track.Storefront, track.ID, track.Language, token)
+		if err != nil {
+			fmt.Println("Failed to load song credits:", err)
+		}
+		track.Credits = credits
+	}
 	err = r.writeMP4Tags(track, lrc)
 	if err != nil {
 		fmt.Println("\u26A0 Failed to write tags in media:", err)

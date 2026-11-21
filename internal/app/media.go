@@ -246,6 +246,8 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		t.ItunesAdvisory = mp4tag.ItunesAdvisoryNone
 	}
 
+	applySongCredits(t, track.Credits, r.Config.Metadata.Tags.SortOrder)
+
 	mp4, err := mp4tag.Open(track.SavePath)
 	if err != nil {
 		return err
