@@ -86,15 +86,13 @@ func TestWriteMP4TagsPreservesNativeGenres(t *testing.T) {
 		if !slices.Equal(tags.CustomGenres, tt.genres) {
 			t.Fatalf("native genres = %q, want %q", tags.CustomGenres, tt.genres)
 		}
-		var ids []string
-		if first, ok := tags.Custom["GENREID"]; ok {
-			ids = append([]string{first}, tags.OtherCustom["GENREID"]...)
+		if !slices.Equal(tags.ItunesGenreIDs, parseContributorIDs(tt.ids)) {
+			t.Fatalf("genre IDs = %v, want %q for %q", tags.ItunesGenreIDs, tt.ids, tt.genres)
 		}
-		if !slices.Equal(ids, tt.ids) {
-			t.Fatalf("genre IDs = %q, want %q for %q", ids, tt.ids, tt.genres)
-		}
-		if _, ok := tags.Custom["GENRE"]; ok {
-			t.Fatal("unexpected freeform GENRE tag")
+		for _, field := range []string{"GENRE", "GENREID"} {
+			if _, ok := tags.Custom[field]; ok {
+				t.Fatalf("unexpected freeform %s tag", field)
+			}
 		}
 		if tags.Custom["ISRC"] != track.Resp.Attributes.Isrc {
 			t.Fatalf("ISRC = %q, want %q", tags.Custom["ISRC"], track.Resp.Attributes.Isrc)
@@ -202,6 +200,15 @@ func TestWriteMP4TagsSongCredits(t *testing.T) {
 			}
 			if !slices.Equal(tags.Directors, wantDirectors) {
 				t.Errorf("native DIRECTOR = %q, want %q", tags.Directors, wantDirectors)
+			}
+			for name, got := range map[string][]string{
+				"ARRANGER": tags.Arrangers, "CONDUCTOR": tags.Conductors, "ENGINEER": tags.Engineers,
+				"PERFORMER": tags.Performers, "PRODUCER": tags.Producers,
+			} {
+				if !slices.Equal(got, wantCustom[name]) {
+					t.Errorf("native %s = %q, want %q", name, got, wantCustom[name])
+				}
+				delete(wantCustom, name)
 			}
 			var wantComposerSort []string
 			if tt.sort {

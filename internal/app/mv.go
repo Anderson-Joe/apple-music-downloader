@@ -172,13 +172,13 @@ func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, trac
 		Artist:      attrs.ArtistName,
 		Album:       attrs.AlbumName,
 		CustomGenre: firstGenre(attrs.GenreNames),
+		Performers:  []string{attrs.ArtistName},
 		Date:        attrs.ReleaseDate,
+		ReleaseDate: attrs.ReleaseDate,
 		TrackNumber: int16(attrs.TrackNumber),
 		DiscNumber:  int16(attrs.DiscNumber),
 		Custom: map[string]string{
-			"PERFORMER":   attrs.ArtistName,
-			"RELEASETIME": attrs.ReleaseDate,
-			"ISRC":        attrs.Isrc,
+			"ISRC": attrs.Isrc,
 		},
 	}
 
@@ -190,7 +190,7 @@ func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, trac
 		tags.TrackNumber = int16(track.TaskNum)
 		tags.TrackTotal = int16(track.TaskTotal)
 		tags.AlbumArtist = track.PlaylistData.Attributes.ArtistName
-		tags.Custom["PERFORMER"] = track.Resp.Attributes.ArtistName
+		tags.Performers = []string{track.Resp.Attributes.ArtistName}
 	case track != nil:
 		tags.Album = track.AlbumData.Attributes.Name
 		tags.DiscNumber = int16(track.Resp.Attributes.DiscNumber)
@@ -198,7 +198,7 @@ func (r *Runner) writeMVMP4Tags(path string, mvInfo *ampapi.MusicVideoResp, trac
 		tags.TrackNumber = int16(track.Resp.Attributes.TrackNumber)
 		tags.TrackTotal = int16(track.AlbumData.Attributes.TrackCount)
 		tags.AlbumArtist = track.AlbumData.Attributes.ArtistName
-		tags.Custom["PERFORMER"] = track.Resp.Attributes.ArtistName
+		tags.Performers = []string{track.Resp.Attributes.ArtistName}
 		tags.Custom["UPC"] = track.AlbumData.Attributes.Upc
 		tags.Copyright = track.AlbumData.Attributes.Copyright
 		tags.Publisher = track.AlbumData.Attributes.RecordLabel

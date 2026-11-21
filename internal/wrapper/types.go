@@ -44,7 +44,6 @@ type WebplaybackData struct {
 	XID      string          `json:"xid"`
 	Comments string          `json:"comments"`
 	Gapless  json.RawMessage `json:"gapless"`
-	GenreID  json.RawMessage `json:"genreId"`
 }
 
 // LicenseData represents data returned by /license.

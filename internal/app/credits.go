@@ -72,9 +72,20 @@ func applySongCredits(tags *mp4tag.MP4Tags, credits *ampapi.SongCredits, sortOrd
 		}
 	}
 	for tag, names := range values {
-		if tag == "DIRECTOR" {
+		switch tag {
+		case "DIRECTOR":
 			tags.Directors = names
-		} else {
+		case "ARRANGER":
+			tags.Arrangers = names
+		case "CONDUCTOR":
+			tags.Conductors = names
+		case "ENGINEER":
+			tags.Engineers = names
+		case "PERFORMER":
+			tags.Performers = names
+		case "PRODUCER":
+			tags.Producers = names
+		default:
 			tags.ReplaceCustomValues[tag] = names
 		}
 		if sortOrder {

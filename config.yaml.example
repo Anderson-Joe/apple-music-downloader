@@ -76,7 +76,7 @@ metadata:
   tags:
     sort-order: true                      # Write sort tags for titles, artists, albums, and credited contributors
     itunes-id: true                       # Write iTunes catalog IDs into metadata
-    playback-tags: false                  # Fetch optional XID, gapless, comments, and iTunes genre ID via wrapper-lite
+    playback-tags: false                  # Fetch optional XID, gapless, and comments via wrapper-lite
     infer-album-release-type: false       # Write Album when catalog tracks rule out Single and EP
     credits: false                        # Fetch and embed Apple Music song credits
     use-songinfo-for-playlist: false      # For playlists, use original song info for album name, track and disc number

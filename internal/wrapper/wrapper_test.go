@@ -285,7 +285,7 @@ func TestWebplayback(t *testing.T) {
 			Msg:  "ok",
 			Data: WebplaybackData{
 				M3u8: "https://playback.m3u8", XID: "Vendor:isrc:TEST", Comments: "Comment",
-				Gapless: json.RawMessage(`false`), GenreID: json.RawMessage(`1253`),
+				Gapless: json.RawMessage(`false`),
 			},
 		})
 	}))
@@ -300,7 +300,7 @@ func TestWebplayback(t *testing.T) {
 	}
 	info, err := New(server.URL).WebplaybackInfo("100")
 	if err != nil || info.M3u8 != m3u8 || info.XID != "Vendor:isrc:TEST" || info.Comments != "Comment" ||
-		string(info.Gapless) != "false" || string(info.GenreID) != "1253" {
+		string(info.Gapless) != "false" {
 		t.Fatalf("unexpected playback info: %+v, error: %v", info, err)
 	}
 

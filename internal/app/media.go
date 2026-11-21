@@ -153,23 +153,28 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		Title:  track.Resp.Attributes.Name,
 		Artist: track.Resp.Attributes.ArtistName,
 		Custom: map[string]string{
-			"PERFORMER":   track.Resp.Attributes.ArtistName,
-			"RELEASETIME": track.Resp.Attributes.ReleaseDate,
-			"ISRC":        track.Resp.Attributes.Isrc,
-			"LABEL":       "",
-			"UPC":         "",
+			"ISRC":  track.Resp.Attributes.Isrc,
+			"LABEL": "",
+			"UPC":   "",
 		},
 		ReplaceCustomValues: map[string][]string{
-			"GENREID":     track.Resp.GenreIDs(),
 			"RELEASETYPE": nil,
 		},
 		Composer:        track.Resp.Attributes.ComposerName,
+		ReleaseDate:     track.Resp.Attributes.ReleaseDate,
 		CustomGenres:    track.Resp.Attributes.GenreNames,
+		ItunesGenreIDs:  parseContributorIDs(track.Resp.GenreIDs()),
 		ItunesMediaType: &mediaType,
 		Lyrics:          lrc,
 		TrackNumber:     int16(track.Resp.Attributes.TrackNumber),
 		DiscNumber:      int16(track.Resp.Attributes.DiscNumber),
 		Album:           track.Resp.Attributes.AlbumName,
+	}
+	if len(t.ItunesGenreIDs) != 0 {
+		t.ReplaceCustomValues["GENREID"] = nil
+	}
+	if t.ReleaseDate != "" {
+		t.ReplaceCustomValues["RELEASETIME"] = nil
 	}
 
 	if r.Config.Metadata.Artwork.Embed && track.CoverPath != "" {
@@ -252,8 +257,19 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 
 	applySongCredits(t, track.Credits, r.Config.Metadata.Tags.SortOrder, r.Config.Metadata.Tags.ItunesID)
 	r.applyPlaybackTags(t, track.Playback)
-	if r.Config.Metadata.Tags.SortOrder && len(t.ReplaceCustomValues["PERFORMER"]) == 0 && t.Custom["PERFORMER"] != "" {
-		t.ReplaceCustomValues["PERFORMERSORT"] = []string{t.Custom["PERFORMER"]}
+	if len(t.Performers) == 0 && track.Resp.Attributes.ArtistName != "" {
+		t.Performers = []string{track.Resp.Attributes.ArtistName}
+	}
+	if r.Config.Metadata.Tags.SortOrder && len(t.Performers) != 0 {
+		t.ReplaceCustomValues["PERFORMERSORT"] = t.Performers
+	}
+	for name, people := range map[string][]string{
+		"ARRANGER": t.Arrangers, "CONDUCTOR": t.Conductors, "DIRECTOR": t.Directors,
+		"ENGINEER": t.Engineers, "PERFORMER": t.Performers, "PRODUCER": t.Producers,
+	} {
+		if len(people) > 0 {
+			t.ReplaceCustomValues[name] = nil
+		}
 	}
 
 	mp4, err := mp4tag.Open(track.SavePath)

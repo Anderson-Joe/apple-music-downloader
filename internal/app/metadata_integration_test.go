@@ -71,7 +71,7 @@ func TestMetadataIntegration(t *testing.T) {
 		Credits: &ampapi.SongCredits{},
 		Playback: wrapper.WebplaybackData{
 			XID: "Vendor:isrc:TEST", Comments: "Playback comment",
-			Gapless: json.RawMessage(`false`), GenreID: json.RawMessage(`"16"`),
+			Gapless: json.RawMessage(`false`),
 		},
 	}
 	for _, fixture := range []struct {
@@ -115,6 +115,10 @@ func TestMetadataIntegration(t *testing.T) {
 		{"COMPOSER", tags.Composers, []string{"Composer A", "Composer B"}},
 		{"COMPOSERSORT", tags.ComposerSorts, []string{"Composer A", "Composer B"}},
 		{"GENRE", tags.CustomGenres, []string{"流行樂", "原聲帶"}},
+		{"ARRANGER", tags.Arrangers, []string{"Writer A", "Writer B"}},
+		{"PRODUCER", tags.Producers, []string{"Producer A", "Producer B"}},
+		{"ENGINEER", tags.Engineers, []string{"Producer A"}},
+		{"PERFORMER", tags.Performers, []string{"Singer A (Vocals)", "Singer B (Guitar)"}},
 	} {
 		if !slices.Equal(field.got, field.want) {
 			t.Errorf("%s = %q, want %q", field.name, field.got, field.want)
@@ -122,20 +126,18 @@ func TestMetadataIntegration(t *testing.T) {
 	}
 	wantCustomTags := map[string][]string{
 		"ITUNESALBUMARTISTID": {"3003", "3001"},
-		"GENREID":             {"14", "16"}, "RELEASETYPE": {"EP", "Compilation", "Soundtrack"},
-		"UPC": {"0196871644518"}, "BARCODE": {"0196871644518"},
-		"ISRC": {"HKA972302100"}, "RELEASETIME": {"2023-09-24"},
+		"RELEASETYPE":         {"EP", "Compilation", "Soundtrack"},
+		"UPC":                 {"0196871644518"}, "BARCODE": {"0196871644518"},
+		"ISRC":     {"HKA972302100"},
 		"LYRICIST": {"Writer A", "Writer B"}, "LYRICISTSORT": {"Writer A", "Writer B"},
-		"ARRANGER": {"Writer A", "Writer B"}, "PRODUCER": {"Producer A", "Producer B"},
-		"ENGINEER": {"Producer A"}, "MIXER": {"Producer B"},
-		"PERFORMER": {"Singer A (Vocals)", "Singer B (Guitar)"},
+		"MIXER": {"Producer B"},
 	}
 	if !slices.Equal(tags.ItunesArtistIDs, []uint64{425208570, 425208571}) ||
 		!slices.Equal(tags.ItunesComposerIDs, []uint64{4294967297, 2001}) {
 		t.Errorf("artist IDs = %v, composer IDs = %v", tags.ItunesArtistIDs, tags.ItunesComposerIDs)
 	}
 	if tags.XID != "Vendor:isrc:TEST" || tags.Comment != "Playback comment" ||
-		tags.ItunesGapless == nil || *tags.ItunesGapless || tags.ItunesGenreID != 16 {
+		tags.ItunesGapless == nil || *tags.ItunesGapless || !slices.Equal(tags.ItunesGenreIDs, []uint64{14, 16}) {
 		t.Errorf("playback metadata changed: XID %q, comment %q, gapless %v, genre ID %d",
 			tags.XID, tags.Comment, tags.ItunesGapless, tags.ItunesGenreID)
 	}
@@ -152,7 +154,7 @@ func TestMetadataIntegration(t *testing.T) {
 		}
 	}
 	if tags.Title != "Integration song" || tags.Album != "Series [Original Television Soundtrack] - EP" ||
-		tags.Date != "2023-11-26" || tags.TrackNumber != 2 || tags.TrackTotal != 6 ||
+		tags.Date != "2023-11-26" || tags.ReleaseDate != "2023-09-24" || tags.TrackNumber != 2 || tags.TrackTotal != 6 ||
 		tags.DiscNumber != 1 || tags.DiscTotal != 1 || tags.Lyrics != "[00:01.00] Test lyrics" {
 		t.Error("track title, album, date, numbering, or lyrics changed")
 	}

@@ -488,9 +488,7 @@ func (r *Runner) ripStation(albumId string, token string, storefront string, med
 			TrackTotal:  1,
 			DiscNumber:  1,
 			DiscTotal:   1,
-			Custom: map[string]string{
-				"PERFORMER": "Apple Music Station",
-			},
+			Performers:  []string{"Apple Music Station"},
 		}
 		if r.Config.Metadata.Artwork.Embed && station.CoverPath != "" {
 			cover, err := os.ReadFile(station.CoverPath)
