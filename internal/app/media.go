@@ -162,6 +162,11 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		ReplaceCustomValues: map[string][]string{
 			"GENREID":     track.Resp.GenreIDs(),
 			"RELEASETYPE": nil,
+			// Readers can prioritize these legacy freeform tags over native values.
+			"ARTISTS":          nil,
+			"ALBUMARTISTS":     nil,
+			"ARTISTSSORT":      nil,
+			"ALBUMARTISTSSORT": nil,
 		},
 		Composer:        track.Resp.Attributes.ComposerName,
 		CustomGenres:    track.Resp.Attributes.GenreNames,
