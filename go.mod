@@ -56,3 +56,5 @@ require (
 	golang.org/x/term v0.30.0
 	gopkg.in/yaml.v2 v2.2.8
 )
+
+replace github.com/itouakirai/go-mp4tag => github.com/Anderson-Joe/go-mp4tag v0.0.0-20261121084603-c121de4e7c44
