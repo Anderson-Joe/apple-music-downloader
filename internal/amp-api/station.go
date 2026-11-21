@@ -107,7 +107,7 @@ func GetStationNextTracks(id, mutoken, language, token string) (*TrackResp, erro
 	query := url.Values{}
 	query.Set("omit[resource]", "autos")
 	//query.Set("include", "tracks,artists,record-labels")
-	query.Set("include[songs]", "artists,albums")
+	query.Set("include[songs]", "artists,albums,genres")
 	query.Set("limit", "10")
 	query.Set("extend", "editorialVideo,extendedAssetUrls")
 	query.Set("l", language)

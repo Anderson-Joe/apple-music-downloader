@@ -157,9 +157,9 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 			"LABEL":       "",
 			"UPC":         "",
 		},
-		ReplaceCustomValues: map[string][]string{"RELEASETYPE": nil},
+		ReplaceCustomValues: map[string][]string{"GENREID": track.Resp.GenreIDs(), "RELEASETYPE": nil},
 		Composer:            track.Resp.Attributes.ComposerName,
-		CustomGenre:         firstGenre(track.Resp.Attributes.GenreNames),
+		CustomGenres:        track.Resp.Attributes.GenreNames,
 		Lyrics:              lrc,
 		TrackNumber:         int16(track.Resp.Attributes.TrackNumber),
 		DiscNumber:          int16(track.Resp.Attributes.DiscNumber),
@@ -244,12 +244,19 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		t.ItunesAdvisory = mp4tag.ItunesAdvisoryNone
 	}
 
+	applySongCredits(t, track.Credits, r.Config.Metadata.Tags.SortOrder)
+
 	mp4, err := mp4tag.Open(track.SavePath)
 	if err != nil {
 		return err
 	}
 	defer mp4.Close()
-	err = mp4.Write(t, []string{})
+	var deleteTags []string
+	if len(t.CustomGenres) > 0 {
+		// Replace the legacy numeric genre when catalog text genres are available.
+		deleteTags = []string{"genre"}
+	}
+	err = mp4.Write(t, deleteTags)
 	if err != nil {
 		return err
 	}
