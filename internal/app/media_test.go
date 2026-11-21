@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	ampapi "amdl/internal/amp-api"
 	"amdl/internal/config"
 	defrag "amdl/internal/media/defrag"
 	"amdl/internal/model"
@@ -15,7 +16,8 @@ import (
 	"github.com/itouakirai/go-mp4tag"
 )
 
-func TestWriteMP4TagsPreservesNativeGenres(t *testing.T) {
+func taggableTestM4A(t *testing.T) string {
+	t.Helper()
 	const fixture = "../media/mv/testdata/A48"
 	init, err := os.ReadFile(filepath.Join(fixture, "init.mp4"))
 	if err != nil {
@@ -32,7 +34,11 @@ func TestWriteMP4TagsPreservesNativeGenres(t *testing.T) {
 	if err := defrag.DefragmentMP4(path); err != nil {
 		t.Fatal(err)
 	}
+	return path
+}
 
+func TestWriteMP4TagsPreservesNativeGenres(t *testing.T) {
+	path := taggableTestM4A(t)
 	runner := NewRunner(config.ConfigSet{})
 	track := &model.Track{SavePath: path}
 	track.Resp.Attributes.Isrc = "USAAA2600001"
@@ -93,6 +99,97 @@ func TestWriteMP4TagsPreservesNativeGenres(t *testing.T) {
 		if tags.Custom["ISRC"] != track.Resp.Attributes.Isrc {
 			t.Fatalf("ISRC = %q, want %q", tags.Custom["ISRC"], track.Resp.Attributes.Isrc)
 		}
+	}
+}
+
+func TestWriteMP4TagsSongCredits(t *testing.T) {
+	var credits ampapi.SongCredits
+	if err := json.Unmarshal([]byte(`{
+		"composers":{"data":[{"attributes":{"name":"Composer A"}},{"attributes":{"name":"Composer B"}}]},
+		"credits":{"data":[
+			{"attributes":{"kind":"performer"},"relationships":{"credit-artists":{"data":[
+				{"attributes":{"name":"Singer","roleNames":["演唱","Vocals"]}}
+			]}}},
+			{"attributes":{"kind":"composer-and-lyrics"},"relationships":{"credit-artists":{"data":[
+				{"attributes":{"name":"Lyricist A","roleNames":["作詞","Lyrics","Arranger"]}},
+				{"attributes":{"name":"Lyricist B","roleNames":["Lyrics","編曲"]}},
+				{"attributes":{"name":"Unspecified","roleNames":["Songwriter","Adapter"]}}
+			]}}},
+			{"attributes":{"kind":"production-and-engineering"},"relationships":{"credit-artists":{"data":[
+				{"attributes":{"name":"Producer A","roleNames":["Producer","Mastering Engineer"]}},
+				{"attributes":{"name":"Producer B","roleNames":["製作人","混音師"]}}
+			]}}}
+		]}
+	}`), &credits); err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		name    string
+		credits *ampapi.SongCredits
+		sort    bool
+	}{
+		{name: "credits and sort tags", credits: &credits, sort: true},
+		{name: "credits without sort tags", credits: &credits},
+		{name: "missing credits keep catalog composer", sort: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			path := taggableTestM4A(t)
+			cfg := config.ConfigSet{}
+			cfg.Metadata.Tags.SortOrder = tt.sort
+			track := &model.Track{SavePath: path, Credits: tt.credits}
+			track.Resp.Attributes.ComposerName = "Catalog composers"
+			track.Resp.Attributes.ArtistName = "Display artist"
+			runner := NewRunner(cfg)
+			for range 2 {
+				if err := runner.writeMP4Tags(track, ""); err != nil {
+					t.Fatal(err)
+				}
+			}
+			file, err := mp4tag.Open(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer file.Close()
+			tags, err := file.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantComposers := []string{"Catalog composers"}
+			wantCustom := map[string][]string{"PERFORMER": {"Display artist"}}
+			if tt.credits != nil {
+				wantComposers = []string{"Composer A", "Composer B"}
+				wantCustom = map[string][]string{
+					"LYRICIST":  {"Lyricist A", "Lyricist B"},
+					"ARRANGER":  {"Lyricist A", "Lyricist B"},
+					"PRODUCER":  {"Producer A", "Producer B"},
+					"ENGINEER":  {"Producer A"},
+					"MIXER":     {"Producer B"},
+					"PERFORMER": {"Singer (演唱)", "Singer (Vocals)"},
+				}
+				if tt.sort {
+					wantCustom["LYRICISTSORT"] = wantCustom["LYRICIST"]
+				}
+			}
+			if !slices.Equal(tags.Composers, wantComposers) {
+				t.Errorf("COMPOSER = %q, want %q", tags.Composers, wantComposers)
+			}
+			var wantComposerSort []string
+			if tt.sort {
+				wantComposerSort = wantComposers
+			}
+			if !slices.Equal(tags.ComposerSorts, wantComposerSort) {
+				t.Errorf("COMPOSERSORT = %q, want %q", tags.ComposerSorts, wantComposerSort)
+			}
+			for _, name := range []string{"LYRICIST", "ARRANGER", "PRODUCER", "ENGINEER", "MIXER", "PERFORMER", "LYRICISTSORT", "SONGWRITER"} {
+				var names []string
+				if first, ok := tags.Custom[name]; ok {
+					names = append([]string{first}, tags.OtherCustom[name]...)
+				}
+				if !slices.Equal(names, wantCustom[name]) {
+					t.Errorf("%s = %q, want %q", name, names, wantCustom[name])
+				}
+			}
+		})
 	}
 }
 
