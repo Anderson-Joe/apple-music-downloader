@@ -157,7 +157,7 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 			"LABEL":       "",
 			"UPC":         "",
 		},
-		ReplaceCustomValues: map[string][]string{"GENREID": track.Resp.GenreIDs()},
+		ReplaceCustomValues: map[string][]string{"GENREID": track.Resp.GenreIDs(), "RELEASETYPE": nil},
 		Composer:            track.Resp.Attributes.ComposerName,
 		CustomGenres:        track.Resp.Attributes.GenreNames,
 		Lyrics:              lrc,
@@ -223,7 +223,7 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		t.AlbumArtist = album.ArtistName
 		t.Custom["UPC"] = album.Upc
 		t.Custom["BARCODE"] = album.Upc
-		t.Custom["RELEASETYPE"] = track.AlbumData.ReleaseType()
+		t.ReplaceCustomValues["RELEASETYPE"] = track.AlbumData.ReleaseTypes()
 		if isPlaylistOrStation {
 			t.Custom["LABEL"] = album.RecordLabel
 		}

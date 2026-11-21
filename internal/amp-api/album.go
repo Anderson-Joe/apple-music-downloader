@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"amdl/internal/download"
@@ -252,16 +253,31 @@ type AlbumRespData struct {
 	} `json:"relationships"`
 }
 
-// ReleaseType recognizes the suffixes specified by the Apple Music Style
-// Guide. The isSingle flag only describes the number of songs.
-func (a *AlbumRespData) ReleaseType() string {
+var releaseVersion = regexp.MustCompile(`\(([^()]*)\)|\[([^\[\]]*)\]`)
+
+// ReleaseTypes returns explicit release classifications in primary-then-secondary
+// order. The Apple Music Style Guide uses title suffixes for singles and EPs
+// and bracketed version information for soundtracks.
+func (a *AlbumRespData) ReleaseTypes() []string {
 	name := strings.ToLower(strings.TrimSpace(a.Attributes.Name))
+	var types []string
 	switch {
 	case strings.HasSuffix(name, " - ep"):
-		return "EP"
+		types = append(types, "EP")
 	case strings.HasSuffix(name, " - single"):
-		return "Single"
-	default:
-		return ""
+		types = append(types, "Single")
 	}
+	if a.Attributes.IsCompilation {
+		types = append(types, "Compilation")
+	}
+	for _, version := range releaseVersion.FindAllStringSubmatch(name, -1) {
+		title := strings.TrimPrefix(strings.TrimSpace(version[1]+version[2]), "score from the ")
+		switch title {
+		case "soundtrack", "original soundtrack", "original motion picture soundtrack",
+			"original television soundtrack", "original game soundtrack",
+			"original video game soundtrack", "korean original motion picture soundtrack":
+			return append(types, "Soundtrack")
+		}
+	}
+	return types
 }
