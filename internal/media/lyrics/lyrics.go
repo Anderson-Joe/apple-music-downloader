@@ -16,13 +16,18 @@ var ErrLyricsNotFound = wrapper.ErrLyricsNotFound
 // ErrNoLyrics is an alias for ErrLyricsNotFound.
 var ErrNoLyrics = wrapper.ErrNoLyrics
 
-func Get(songId, lrcType, language, lrcFormat, liteServer, lrcExtra string) (string, error) {
+func Get(songId, lrcType, language, lrcFormat, liteServer, lrcExtra string, translationLanguages ...string) (string, error) {
 	ttml, err := getSongLyrics(songId, liteServer, lrcType, language)
 	if err != nil {
 		return "", err
 	}
 
 	if lrcFormat == "ttml" {
+		if len(translationLanguages) > 0 {
+			ttml = addTTMLTranslations(ttml, language, translationLanguages, func(locale string) (string, error) {
+				return getSongLyrics(songId, liteServer, lrcType, locale)
+			})
+		}
 		formatted, err := formatTTML(ttml)
 		if err != nil {
 			fmt.Printf("Could not format TTML lyrics, using original: %v\n", err)

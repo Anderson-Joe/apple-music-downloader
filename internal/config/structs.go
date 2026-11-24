@@ -65,11 +65,12 @@ type MetadataConfig struct {
 
 // LyricsConfig holds lyrics fetching, formatting, and embedding options.
 type LyricsConfig struct {
-	SaveFile bool   `koanf:"save-file"`
-	Embed    bool   `koanf:"embed"`
-	Type     string `koanf:"type"`
-	Format   string `koanf:"format"`
-	Extra    string `koanf:"extra"`
+	SaveFile             bool     `koanf:"save-file"`
+	Embed                bool     `koanf:"embed"`
+	Type                 string   `koanf:"type"`
+	Format               string   `koanf:"format"`
+	Extra                string   `koanf:"extra"`
+	TranslationLanguages []string `koanf:"translation-languages"`
 }
 
 // ArtworkConfig holds cover art and animated artwork options.

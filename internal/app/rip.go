@@ -197,7 +197,8 @@ func (r *Runner) ripTrack(track *model.Track, token string, mediaUserToken strin
 	if r.Config.Metadata.Lyrics.Embed || r.Config.Metadata.Lyrics.SaveFile {
 		lyricsCh = make(chan lyricsResult, 1)
 		go func() {
-			lrcStr, err := lyrics.Get(track.ID, r.Config.Metadata.Lyrics.Type, r.Config.General.Language, r.Config.Metadata.Lyrics.Format, r.Config.General.LiteServer, r.Config.Metadata.Lyrics.Extra)
+			cfg := r.Config.Metadata.Lyrics
+			lrcStr, err := lyrics.Get(track.ID, cfg.Type, r.Config.General.Language, cfg.Format, r.Config.General.LiteServer, cfg.Extra, cfg.TranslationLanguages...)
 			lyricsCh <- lyricsResult{lrc: lrcStr, err: err}
 		}()
 	}

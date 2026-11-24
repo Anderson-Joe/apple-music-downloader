@@ -63,6 +63,7 @@ metadata:
     type: "lyrics"                        # Lyrics type: "lyrics" (standard line-by-line) or "syllable-lyrics" (word-by-word)
     format: "lrc"                         # Lyrics file format: "lrc" or "ttml"
     extra: ""                             # Additional lyric options: "translation" or "pronunciation" (when available)
+    translation-languages: []             # TTML only. Additional locales, e.g. ["en-US", "zh-Hans-CN", "ja-JP"]
 
   artwork:
     embed: true                           # Embed cover artwork into downloaded audio files
