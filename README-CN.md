@@ -48,14 +48,14 @@
 
 运行前必须准备：
 
-1. **wrapper-lite**：[github.com/WorldObservationLog/wrapper/tree/lite](https://github.com/WorldObservationLog/wrapper/tree/lite)。必需的后端解密服务。必须先启动它，并在 `lite-server` 中写入其 HTTP 地址，例如 `http://127.0.0.1:12340`。
+1. **wrapper-lite**：[github.com/WorldObservationLog/wrapper/tree/lite](https://github.com/Anderson-Joe/wrapper/releases/latest)。必需的后端解密服务。必须先启动它，并在 `lite-server` 中写入其 HTTP 地址，例如 `http://127.0.0.1:12340`。
 2. **ffmpeg**（可选）：仅在后下载转换、动态封面或依赖 ffmpeg 的功能中需要。见 [ffmpeg.org](https://ffmpeg.org/)。
 
 > **提示**：直接使用 Release 预编译二进制文件**不需要安装 Go**。只有自行从源码编译时才需要 Go 1.23.1+（见 [开发者指南](#开发者指南)）。
 
 ## 快速开始
 
-从 [最新 GitHub Releases](https://github.com/zhaarey/apple-music-downloader/releases/latest) 下载适合你系统和架构的预编译二进制文件：
+从 [最新 GitHub Releases](https://github.com/Anderson-Joe/apple-music-downloader/releases/latest) 下载适合你系统和架构的预编译二进制文件：
 
 | 系统平台 | 硬件架构 | 预编译二进制文件名 |
 |---|---|---|
@@ -75,7 +75,7 @@
 
 ```powershell
 # 下载预编译二进制（以 64 位 Windows 为例）
-Invoke-WebRequest -Uri "https://github.com/zhaarey/apple-music-downloader/releases/latest/download/amdl_windows_amd64.exe" -OutFile "amdl.exe"
+Invoke-WebRequest -Uri "https://github.com/Anderson-Joe/apple-music-downloader/releases/latest/download/amdl_windows_amd64.exe" -OutFile "amdl.exe"
 ```
 
 2. 首次运行 `amdl.exe`，程序将自动在当前目录下生成默认的 `config.yaml`：
@@ -105,10 +105,10 @@ Invoke-WebRequest -Uri "https://github.com/zhaarey/apple-music-downloader/releas
 
 ```bash
 # Apple Silicon 芯片（M 系列）：
-curl -L -o amdl https://github.com/zhaarey/apple-music-downloader/releases/latest/download/amdl_darwin_arm64
+curl -L -o amdl https://github.com/Anderson-Joe/apple-music-downloader/releases/latest/download/amdl_darwin_arm64
 
 # Intel 芯片：
-# curl -L -o amdl https://github.com/zhaarey/apple-music-downloader/releases/latest/download/amdl_darwin_amd64
+# curl -L -o amdl https://github.com/Anderson-Joe/apple-music-downloader/releases/latest/download/amdl_darwin_amd64
 
 # 赋予执行权限
 chmod +x amdl
@@ -146,10 +146,10 @@ chmod +x amdl
 
 ```bash
 # x86_64 / amd64 架构：
-curl -L -o amdl https://github.com/zhaarey/apple-music-downloader/releases/latest/download/amdl_linux_amd64
+curl -L -o amdl https://github.com/Anderson-Joe/apple-music-downloader/releases/latest/download/amdl_linux_amd64
 
 # ARM64 架构：
-# curl -L -o amdl https://github.com/zhaarey/apple-music-downloader/releases/latest/download/amdl_linux_arm64
+# curl -L -o amdl https://github.com/Anderson-Joe/apple-music-downloader/releases/latest/download/amdl_linux_arm64
 
 # 赋予执行权限
 chmod +x amdl
@@ -196,7 +196,7 @@ termux-setup-storage
 3. 下载预编译二进制：
 
 ```bash
-curl -L -o amdl https://github.com/zhaarey/apple-music-downloader/releases/latest/download/amdl_android_arm64
+curl -L -o amdl https://github.com/Anderson-Joe/apple-music-downloader/releases/latest/download/amdl_android_arm64
 chmod +x amdl
 ```
 
@@ -230,7 +230,7 @@ paths:
 
 ## Docker
 
-每次发布 Release 时会向 GHCR 推送多架构镜像（`linux/amd64`、`linux/arm64`，已内置 ffmpeg）：`ghcr.io/zhaarey/apple-music-downloader`。标签：`latest`、`<主>.<次>` 以及精确版本号（预发布版本只有精确版本号标签）。
+每次发布 Release 时会向 GHCR 推送多架构镜像（`linux/amd64`、`linux/arm64`，已内置 ffmpeg）：`ghcr.io/anderson-joe/apple-music-downloader`。标签：`latest`、`<主>.<次>` 以及精确版本号（预发布版本只有精确版本号标签）。
 
 容器内的工作目录是 `/data`：首次运行会在此生成 `config.yaml`，所有下载目录（`AM-Lossless` 等）也在这里。
 
@@ -257,7 +257,7 @@ docker compose run --rm amdl --atmos --select "https://music.apple.com/..."
 docker run --rm -it --user "$(id -u):$(id -g)" \
   -v "$PWD/data:/data" \
   -e AMDL_LITE_SERVER=http://192.168.1.10:12340 \
-  ghcr.io/zhaarey/apple-music-downloader:latest \
+  ghcr.io/anderson-joe/apple-music-downloader:latest \
   "https://music.apple.com/us/album/..."
 ```
 
@@ -396,7 +396,10 @@ metadata:
     type: "lyrics"                        # 歌词类型："lyrics"（标准逐行歌词）或 "syllable-lyrics"（逐词/逐字动态歌词）
     format: "lrc"                         # 歌词格式："lrc" 或 "ttml"
     extra: ""                             # 附加歌词选项：""（默认原语种）、"translation"（翻译歌词）或 "pronunciation"（发音/罗马音歌词）
+    translation-languages: ["en-US", "zh-Hans-CN", "ja-JP"]
 ```
+
+TTML 支持合并多种译文，保留原文和音译。开启 `metadata.artwork.save-artist` 可保存专辑关联艺人的图片，开启 `centralize-artist-images` 可按艺人名集中保存到 `ArtistImageFolder`，也可通过 `artist-path` 指定路径。可选播放标签需要上方链接的 wrapper 版本。
 
 > **提示**：
 > - 可在 `config.yaml` 的 `general.language` 中配置目标语言代码（如 `"zh-Hans-CN"`、`"en-US"`、`"ja"` 等），用以控制歌词翻译的目标语言。
@@ -436,7 +439,7 @@ Windows PowerShell：
 
 ### 手动更新二进制
 
-直接前往 [GitHub Releases](https://github.com/zhaarey/apple-music-downloader/releases/latest) 下载对应平台的最新预编译二进制文件，替换原有的 `amdl` 或 `amdl.exe` 即可。
+直接前往 [GitHub Releases](https://github.com/Anderson-Joe/apple-music-downloader/releases/latest) 下载对应平台的最新预编译二进制文件，替换原有的 `amdl` 或 `amdl.exe` 即可。
 
 > 如果是通过源码构建的用户，请参阅 [开发者指南](#开发者指南)。
 
@@ -455,7 +458,7 @@ Windows PowerShell：
 **macOS / Linux**：
 
 ```bash
-git clone https://github.com/zhaarey/apple-music-downloader.git
+git clone https://github.com/Anderson-Joe/apple-music-downloader.git
 cd apple-music-downloader
 cp config.yaml.example config.yaml
 go build -o amdl .
@@ -465,7 +468,7 @@ go build -o amdl .
 **Windows (PowerShell)**：
 
 ```powershell
-git clone https://github.com/zhaarey/apple-music-downloader.git
+git clone https://github.com/Anderson-Joe/apple-music-downloader.git
 cd apple-music-downloader
 copy config.yaml.example config.yaml
 go build -o amdl.exe .

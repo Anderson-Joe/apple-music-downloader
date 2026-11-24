@@ -153,7 +153,18 @@ jobs:
           tag_name: ${{ needs.check.outputs.tag }}
           target_commitish: ${{ github.sha }}
           files: release-assets/*
-          generate_release_notes: true
+          body: |
+            ## 新功能
+            - 多语言 TTML 译文与保留逐字时间戳的歌词排版。
+            - 专辑多艺人图片下载与集中保存。
+            - 多值流派、艺人和制作人员标签，兼容 Mp3tag 和 Navidrome。
+            - 发行类型、曲序补零，以及可选的 XID、无缝播放和评论标签。
+
+            ## New features
+            - Multi-language TTML translations and formatting with word timings preserved.
+            - Artwork for all album artists with an option to centralize images.
+            - Multi-value genre, artist, and contributor tags for Mp3tag and Navidrome.
+            - Release types, zero-padded track filenames, and optional XID, gapless, and comment tags.
           draft: false
           prerelease: ${{ needs.check.outputs.prerelease == 'true' }}
 
