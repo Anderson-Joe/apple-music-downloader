@@ -74,13 +74,15 @@ type LyricsConfig struct {
 
 // ArtworkConfig holds cover art and animated artwork options.
 type ArtworkConfig struct {
-	Embed         bool   `koanf:"embed"`
-	Size          string `koanf:"size"`
-	Format        string `koanf:"format"`
-	SaveArtist    bool   `koanf:"save-artist"`
-	SaveAnimated  bool   `koanf:"save-animated"`
-	EmbyAnimated  bool   `koanf:"emby-animated"`
-	DlForPlaylist bool   `koanf:"dl-for-playlist"`
+	Embed                  bool   `koanf:"embed"`
+	Size                   string `koanf:"size"`
+	Format                 string `koanf:"format"`
+	SaveArtist             bool   `koanf:"save-artist"`
+	ArtistPath             string `koanf:"artist-path"`
+	CentralizeArtistImages bool   `koanf:"centralize-artist-images"`
+	SaveAnimated           bool   `koanf:"save-animated"`
+	EmbyAnimated           bool   `koanf:"emby-animated"`
+	DlForPlaylist          bool   `koanf:"dl-for-playlist"`
 }
 
 // TagsConfig holds audio metadata tag formatting and identifiers.

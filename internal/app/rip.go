@@ -640,13 +640,14 @@ func (r *Runner) ripAlbum(albumId string, token string, storefront string, media
 		singerFoldername = strings.TrimSpace(singerFoldername)
 		fmt.Println(singerFoldername)
 	}
-	singerFolder := filepath.Join(r.Config.Paths.Alac, forbiddenNames.ReplaceAllString(singerFoldername, "_"))
+	artworkRoot := r.Config.Paths.Alac
 	if r.Flags.Atmos {
-		singerFolder = filepath.Join(r.Config.Paths.Atmos, forbiddenNames.ReplaceAllString(singerFoldername, "_"))
+		artworkRoot = r.Config.Paths.Atmos
 	}
 	if r.Flags.AAC {
-		singerFolder = filepath.Join(r.Config.Paths.Aac, forbiddenNames.ReplaceAllString(singerFoldername, "_"))
+		artworkRoot = r.Config.Paths.Aac
 	}
+	singerFolder := filepath.Join(artworkRoot, forbiddenNames.ReplaceAllString(singerFoldername, "_"))
 	if err := createDirectory(singerFolder); err != nil {
 		return err
 	}
@@ -726,13 +727,8 @@ func (r *Runner) ripAlbum(albumId string, token string, storefront string, media
 	}
 	album.SaveName = albumFolderName
 	fmt.Println(albumFolderName)
-	if r.Config.Metadata.Artwork.SaveArtist && len(meta.Data[0].Relationships.Artists.Data) > 0 {
-		if meta.Data[0].Relationships.Artists.Data[0].Attributes.Artwork.Url != "" {
-			_, err = r.writeCover(singerFolder, "folder", meta.Data[0].Relationships.Artists.Data[0].Attributes.Artwork.Url)
-			if err != nil {
-				fmt.Println("Failed to write artist cover.")
-			}
-		}
+	if r.Config.Metadata.Artwork.SaveArtist {
+		r.saveAlbumArtistArtwork(artworkRoot, singerFolder, &meta.Data[0])
 	}
 	covPath, err := r.writeCover(albumFolderPath, "cover", meta.Data[0].Attributes.Artwork.URL)
 	if err != nil {

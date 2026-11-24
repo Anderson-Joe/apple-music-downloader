@@ -1,12 +1,63 @@
 package app
 
 import (
+	ampapi "amdl/internal/amp-api"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 )
+
+func (r *Runner) saveAlbumArtistArtwork(root, albumArtistFolder string, album *ampapi.AlbumRespData) {
+	cfg := r.Config.Metadata.Artwork
+	artists := album.Relationships.Artists.Data
+	seen := make(map[string]bool)
+	usedPaths := make(map[string]bool)
+	for _, artist := range artists {
+		id, artworkURL := artist.ID, artist.Attributes.Artwork.Url
+		if id == "" || strings.Trim(id, "0123456789") != "" || artworkURL == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+
+		artistName := r.LimitString(artist.Attributes.Name)
+		name := strings.Trim(forbiddenNames.ReplaceAllString(artistName, "_"), " .")
+		if name == "" {
+			name = id
+		}
+		dir, file := albumArtistFolder, "folder"
+		switch {
+		case cfg.CentralizeArtistImages:
+			dir, file = cfg.ArtistPath, name
+			if dir == "" {
+				dir = filepath.Join(root, "ArtistImageFolder")
+			}
+		case cfg.ArtistPath != "":
+			dir = filepath.Join(cfg.ArtistPath, id)
+		case len(artists) > 1:
+			folder := strings.NewReplacer("{ArtistId}", id, "{ArtistName}", name, "{UrlArtistName}", name).
+				Replace(r.Config.Paths.ArtistFolder)
+			folder = strings.Trim(forbiddenNames.ReplaceAllString(folder, "_"), " .")
+			if folder == "" {
+				folder = id
+			}
+			dir = filepath.Join(root, folder)
+		}
+		key := strings.ToLower(filepath.Join(dir, file))
+		if usedPaths[key] {
+			file += " [" + id + "]"
+		}
+		usedPaths[strings.ToLower(filepath.Join(dir, file))] = true
+		if err := createDirectory(dir); err != nil {
+			fmt.Printf("Failed to create artist artwork folder for %s: %v\n", id, err)
+			continue
+		}
+		if _, err := r.writeCover(dir, file, artworkURL); err != nil {
+			fmt.Printf("Failed to write artist artwork for %s: %v\n", id, err)
+		}
+	}
+}
 
 func (r *Runner) saveAnimatedArtwork(dir string, squareVideoURL string, tallVideoURL string) {
 	if squareVideoURL != "" {

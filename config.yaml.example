@@ -68,7 +68,9 @@ metadata:
     embed: true                           # Embed cover artwork into downloaded audio files
     size: "5000x5000"                     # Cover image resolution: "5000x5000", "3000x3000", "1400x1400", etc.
     format: "jpg"                         # Image format: "jpg", "png", or "original"
-    save-artist: false                    # Save artist banner/avatar cover image to artist folder
+    save-artist: false                     # Save artwork for all album artists using size and format above
+    centralize-artist-images: false       # Save named artist images together in ArtistImageFolder
+    artist-path: ""                       # Override the central image directory or the root for per-artist ID folders
     save-animated: false                  # Save motion/animated artwork as video (requires ffmpeg)
     emby-animated: false                  # Save animated artwork formatted for Emby/Jellyfin (requires ffmpeg)
     dl-for-playlist: false                # Download separate album cover image for playlists
