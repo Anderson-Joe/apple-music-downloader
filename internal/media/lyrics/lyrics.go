@@ -23,7 +23,12 @@ func Get(songId, lrcType, language, lrcFormat, liteServer, lrcExtra string) (str
 	}
 
 	if lrcFormat == "ttml" {
-		return ttml, nil
+		formatted, err := formatTTML(ttml)
+		if err != nil {
+			fmt.Printf("Could not format TTML lyrics, using original: %v\n", err)
+			return ttml, nil
+		}
+		return formatted, nil
 	}
 
 	lrc, err := TtmlToLrc(ttml, lrcExtra)
