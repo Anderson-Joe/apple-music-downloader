@@ -172,12 +172,6 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 	if len(t.ItunesGenreIDs) != 0 {
 		t.ReplaceCustomValues["GENREID"] = nil
 	}
-	if t.ReleaseDate != "" {
-		t.ReplaceCustomValues["RELEASETIME"] = nil
-	}
-	if t.ISRC != "" {
-		t.ReplaceCustomValues["ISRC"] = nil
-	}
 
 	if r.Config.Metadata.Artwork.Embed && track.CoverPath != "" {
 		cover, err := os.ReadFile(track.CoverPath)
@@ -236,9 +230,6 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		t.Custom["BARCODE"] = album.Upc
 		t.ReplaceCustomValues["RELEASETYPE"] = track.AlbumData.ReleaseTypes(r.Config.Metadata.Tags.InferAlbumReleaseType)
 		t.RecordLabel = album.RecordLabel
-		if t.RecordLabel != "" {
-			t.ReplaceCustomValues["LABEL"] = nil
-		}
 		t.Date = album.ReleaseDate
 		t.Copyright = album.Copyright
 		if r.Config.Metadata.Tags.SortOrder {
@@ -265,14 +256,6 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 	if r.Config.Metadata.Tags.SortOrder && len(t.Performers) != 0 {
 		t.ReplaceCustomValues["PERFORMERSORT"] = t.Performers
 	}
-	for name, people := range map[string][]string{
-		"ARRANGER": t.Arrangers, "CONDUCTOR": t.Conductors, "DIRECTOR": t.Directors,
-		"ENGINEER": t.Engineers, "PERFORMER": t.Performers, "PRODUCER": t.Producers,
-	} {
-		if len(people) > 0 {
-			t.ReplaceCustomValues[name] = nil
-		}
-	}
 
 	mp4, err := mp4tag.Open(track.SavePath)
 	if err != nil {
@@ -284,11 +267,47 @@ func (r *Runner) writeMP4Tags(track *model.Track, lrc string) error {
 		// Replace the legacy numeric genre when catalog text genres are available.
 		deleteTags = []string{"genre"}
 	}
-	err = mp4.Write(t, deleteTags)
+	err = mp4.Write(t, useCompatibleMP4Tags(t, deleteTags))
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+// useCompatibleMP4Tags converts catalog tags to mappings shared by library tools.
+func useCompatibleMP4Tags(tags *mp4tag.MP4Tags, deletes []string) []string {
+	if tags.ReplaceCustomValues == nil {
+		tags.ReplaceCustomValues = make(map[string][]string)
+	}
+	if tags.ReleaseDate != "" {
+		tags.ReplaceCustomValues["RELEASETIME"] = []string{tags.ReleaseDate}
+		tags.ReleaseDate = ""
+		deletes = append(deletes, "releasedate")
+	}
+	if tags.ISRC != "" {
+		tags.ReplaceCustomValues["ISRC"] = []string{tags.ISRC}
+		tags.ISRC = ""
+		deletes = append(deletes, "isrc")
+	}
+	if tags.RecordLabel != "" {
+		tags.ReplaceCustomValues["LABEL"] = []string{tags.RecordLabel}
+		// Preserve the upstream convention of exposing the label as Publisher too.
+		tags.Publisher = tags.RecordLabel
+		tags.RecordLabel = ""
+		deletes = append(deletes, "recordlabel")
+	}
+	for name, people := range map[string]*[]string{
+		"ARRANGER": &tags.Arrangers, "CONDUCTOR": &tags.Conductors,
+		"DIRECTOR": &tags.Directors, "ENGINEER": &tags.Engineers,
+		"PERFORMER": &tags.Performers, "PRODUCER": &tags.Producers,
+	} {
+		if len(*people) > 0 {
+			tags.ReplaceCustomValues[name] = *people
+			// An empty non-nil slice clears previously written native values.
+			*people = []string{}
+		}
+	}
+	return deletes
 }
 
 func (r *Runner) setMP4ArtistValues(tags *mp4tag.MP4Tags, track *model.Track, useCollectionTags bool) {
