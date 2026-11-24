@@ -115,7 +115,7 @@ func (r *Runner) ripTrack(track *model.Track, token string, mediaUserToken strin
 		"{ArtistName}", r.LimitString(track.Resp.Attributes.ArtistName),
 		"{SongName}", r.LimitString(track.Resp.Attributes.Name),
 		"{DiscNumber}", fmt.Sprintf("%0d", track.Resp.Attributes.DiscNumber),
-		"{TrackNumber}", fmt.Sprintf("%0d", track.Resp.Attributes.TrackNumber),
+		"{TrackNumber}", fmt.Sprintf("%02d", track.Resp.Attributes.TrackNumber),
 		"{Quality}", Quality,
 		"{Tag}", Tag_string,
 		"{Codec}", track.Codec,
@@ -197,7 +197,8 @@ func (r *Runner) ripTrack(track *model.Track, token string, mediaUserToken strin
 	if r.Config.Metadata.Lyrics.Embed || r.Config.Metadata.Lyrics.SaveFile {
 		lyricsCh = make(chan lyricsResult, 1)
 		go func() {
-			lrcStr, err := lyrics.Get(track.ID, r.Config.Metadata.Lyrics.Type, r.Config.General.Language, r.Config.Metadata.Lyrics.Format, r.Config.General.LiteServer, r.Config.Metadata.Lyrics.Extra)
+			cfg := r.Config.Metadata.Lyrics
+			lrcStr, err := lyrics.Get(track.ID, cfg.Type, r.Config.General.Language, cfg.Format, r.Config.General.LiteServer, cfg.Extra, cfg.TranslationLanguages...)
 			lyricsCh <- lyricsResult{lrc: lrcStr, err: err}
 		}()
 	}
@@ -423,7 +424,7 @@ func (r *Runner) ripStation(albumId string, token string, storefront string, med
 			"{SongNumer}", "01",
 			"{SongName}", r.LimitString(station.Name),
 			"{DiscNumber}", "1",
-			"{TrackNumber}", "1",
+			"{TrackNumber}", "01",
 			"{Quality}", "256Kbps",
 			"{Tag}", "",
 			"{Codec}", "AAC",
@@ -640,13 +641,14 @@ func (r *Runner) ripAlbum(albumId string, token string, storefront string, media
 		singerFoldername = strings.TrimSpace(singerFoldername)
 		fmt.Println(singerFoldername)
 	}
-	singerFolder := filepath.Join(r.Config.Paths.Alac, forbiddenNames.ReplaceAllString(singerFoldername, "_"))
+	artworkRoot := r.Config.Paths.Alac
 	if r.Flags.Atmos {
-		singerFolder = filepath.Join(r.Config.Paths.Atmos, forbiddenNames.ReplaceAllString(singerFoldername, "_"))
+		artworkRoot = r.Config.Paths.Atmos
 	}
 	if r.Flags.AAC {
-		singerFolder = filepath.Join(r.Config.Paths.Aac, forbiddenNames.ReplaceAllString(singerFoldername, "_"))
+		artworkRoot = r.Config.Paths.Aac
 	}
+	singerFolder := filepath.Join(artworkRoot, forbiddenNames.ReplaceAllString(singerFoldername, "_"))
 	if err := createDirectory(singerFolder); err != nil {
 		return err
 	}
@@ -726,13 +728,8 @@ func (r *Runner) ripAlbum(albumId string, token string, storefront string, media
 	}
 	album.SaveName = albumFolderName
 	fmt.Println(albumFolderName)
-	if r.Config.Metadata.Artwork.SaveArtist && len(meta.Data[0].Relationships.Artists.Data) > 0 {
-		if meta.Data[0].Relationships.Artists.Data[0].Attributes.Artwork.Url != "" {
-			_, err = r.writeCover(singerFolder, "folder", meta.Data[0].Relationships.Artists.Data[0].Attributes.Artwork.Url)
-			if err != nil {
-				fmt.Println("Failed to write artist cover.")
-			}
-		}
+	if r.Config.Metadata.Artwork.SaveArtist {
+		r.saveAlbumArtistArtwork(artworkRoot, singerFolder, &meta.Data[0])
 	}
 	covPath, err := r.writeCover(albumFolderPath, "cover", meta.Data[0].Attributes.Artwork.URL)
 	if err != nil {

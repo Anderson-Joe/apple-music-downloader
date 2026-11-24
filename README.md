@@ -48,14 +48,14 @@ Stations require a valid `media-user-token` from an active subscription.
 
 Install and prepare these before running the downloader:
 
-1. **wrapper-lite**: [github.com/WorldObservationLog/wrapper/tree/lite](https://github.com/WorldObservationLog/wrapper/tree/lite). Required backend decryption service. Start it before using this downloader and set its HTTP endpoint in `lite-server`, for example `http://127.0.0.1:12340`.
+1. **wrapper-lite**: [github.com/WorldObservationLog/wrapper/tree/lite](https://github.com/Anderson-Joe/wrapper/releases/latest). Required backend decryption service. Start it before using this downloader and set its HTTP endpoint in `lite-server`, for example `http://127.0.0.1:12340`.
 2. **ffmpeg** (Optional): Required only for post-download conversion, animated artwork, or `ffmpeg`-dependent features. See [ffmpeg.org](https://ffmpeg.org/).
 
 > **Note**: If you are using the precompiled release binaries, **Go is NOT required**. Go (1.23.1+) is only needed if you build from source (see [For Developers](#for-developers)).
 
 ## Quick Start
 
-Download the precompiled binary for your operating system and architecture from the [latest GitHub Releases](https://github.com/zhaarey/apple-music-downloader/releases/latest):
+Download the precompiled binary for your operating system and architecture from the [latest GitHub Releases](https://github.com/Anderson-Joe/apple-music-downloader/releases/latest):
 
 | Platform | Architecture | Precompiled Binary |
 |---|---|---|
@@ -75,7 +75,7 @@ Download the precompiled binary for your operating system and architecture from 
 
 ```powershell
 # Download precompiled binary (example for 64-bit Windows)
-Invoke-WebRequest -Uri "https://github.com/zhaarey/apple-music-downloader/releases/latest/download/amdl_windows_amd64.exe" -OutFile "amdl.exe"
+Invoke-WebRequest -Uri "https://github.com/Anderson-Joe/apple-music-downloader/releases/latest/download/amdl_windows_amd64.exe" -OutFile "amdl.exe"
 ```
 
 2. Run `amdl.exe` once to automatically generate the default `config.yaml`:
@@ -105,10 +105,10 @@ Example:
 
 ```bash
 # For Apple Silicon (M-series):
-curl -L -o amdl https://github.com/zhaarey/apple-music-downloader/releases/latest/download/amdl_darwin_arm64
+curl -L -o amdl https://github.com/Anderson-Joe/apple-music-downloader/releases/latest/download/amdl_darwin_arm64
 
 # For Intel Macs:
-# curl -L -o amdl https://github.com/zhaarey/apple-music-downloader/releases/latest/download/amdl_darwin_amd64
+# curl -L -o amdl https://github.com/Anderson-Joe/apple-music-downloader/releases/latest/download/amdl_darwin_amd64
 
 # Grant execution permission
 chmod +x amdl
@@ -140,10 +140,10 @@ chmod +x amdl
 
 ```bash
 # For x86_64 / amd64:
-curl -L -o amdl https://github.com/zhaarey/apple-music-downloader/releases/latest/download/amdl_linux_amd64
+curl -L -o amdl https://github.com/Anderson-Joe/apple-music-downloader/releases/latest/download/amdl_linux_amd64
 
 # For ARM64:
-# curl -L -o amdl https://github.com/zhaarey/apple-music-downloader/releases/latest/download/amdl_linux_arm64
+# curl -L -o amdl https://github.com/Anderson-Joe/apple-music-downloader/releases/latest/download/amdl_linux_arm64
 
 # Grant execution permission
 chmod +x amdl
@@ -184,7 +184,7 @@ termux-setup-storage
 3. Download precompiled binary:
 
 ```bash
-curl -L -o amdl https://github.com/zhaarey/apple-music-downloader/releases/latest/download/amdl_android_arm64
+curl -L -o amdl https://github.com/Anderson-Joe/apple-music-downloader/releases/latest/download/amdl_android_arm64
 chmod +x amdl
 ```
 
@@ -218,7 +218,7 @@ paths:
 
 ## Docker
 
-A multi-arch image (`linux/amd64`, `linux/arm64`, ffmpeg included) is published to GHCR on every release: `ghcr.io/zhaarey/apple-music-downloader`. Tags: `latest`, `<major>.<minor>`, and the exact version (prereleases only get the exact version).
+A multi-arch image (`linux/amd64`, `linux/arm64`, ffmpeg included) is published to GHCR on every release: `ghcr.io/anderson-joe/apple-music-downloader`. Tags: `latest`, `<major>.<minor>`, and the exact version (prereleases only get the exact version).
 
 `/data` is the working directory inside the container: `config.yaml` is created there on first run and all download folders (`AM-Lossless`, ...) end up there too.
 
@@ -245,7 +245,7 @@ If wrapper-lite already runs somewhere else:
 docker run --rm -it --user "$(id -u):$(id -g)" \
   -v "$PWD/data:/data" \
   -e AMDL_LITE_SERVER=http://192.168.1.10:12340 \
-  ghcr.io/zhaarey/apple-music-downloader:latest \
+  ghcr.io/anderson-joe/apple-music-downloader:latest \
   "https://music.apple.com/us/album/..."
 ```
 
@@ -384,7 +384,10 @@ metadata:
     type: "lyrics"                        # Lyrics type: "lyrics" (standard line-by-line) or "syllable-lyrics" (word-by-word)
     format: "lrc"                         # Lyrics file format: "lrc" or "ttml"
     extra: ""                             # Additional options: "" (default), "translation", or "pronunciation"
+    translation-languages: ["en-US", "zh-Hans-CN", "ja-JP"]
 ```
+
+TTML can merge additional translation tracks while retaining the original lyrics and transliteration. For album artist images, enable `metadata.artwork.save-artist`. Set `centralize-artist-images` to save by artist name under `ArtistImageFolder`, or set `artist-path` to override the output location. Use the linked wrapper release for optional playback metadata.
 
 > **Tips**:
 > - Set `general.language` in `config.yaml` (e.g. `"en-US"`, `"zh-Hans-CN"`, `"ja"`) to control the target language for translated lyrics.
@@ -424,7 +427,7 @@ On Windows PowerShell:
 
 ### Manual Binary Update
 
-Download the latest precompiled executable from [GitHub Releases](https://github.com/zhaarey/apple-music-downloader/releases/latest) and replace your current `amdl` / `amdl.exe` binary.
+Download the latest precompiled executable from [GitHub Releases](https://github.com/Anderson-Joe/apple-music-downloader/releases/latest) and replace your current `amdl` / `amdl.exe` binary.
 
 > For developers building from source, see [For Developers](#for-developers).
 
@@ -443,7 +446,7 @@ If you want to contribute, modify the code, or build the downloader from source:
 **macOS / Linux**:
 
 ```bash
-git clone https://github.com/zhaarey/apple-music-downloader.git
+git clone https://github.com/Anderson-Joe/apple-music-downloader.git
 cd apple-music-downloader
 cp config.yaml.example config.yaml
 go build -o amdl .
@@ -453,7 +456,7 @@ go build -o amdl .
 **Windows (PowerShell)**:
 
 ```powershell
-git clone https://github.com/zhaarey/apple-music-downloader.git
+git clone https://github.com/Anderson-Joe/apple-music-downloader.git
 cd apple-music-downloader
 copy config.yaml.example config.yaml
 go build -o amdl.exe .

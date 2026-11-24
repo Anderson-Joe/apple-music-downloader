@@ -94,8 +94,8 @@ func TestWriteMP4TagsPreservesNativeGenres(t *testing.T) {
 				t.Fatalf("unexpected freeform %s tag", field)
 			}
 		}
-		if tags.ISRC != track.Resp.Attributes.Isrc {
-			t.Fatalf("native ISRC = %q, want %q", tags.ISRC, track.Resp.Attributes.Isrc)
+		if tags.Custom["ISRC"] != track.Resp.Attributes.Isrc {
+			t.Fatalf("freeform ISRC = %q, want %q", tags.Custom["ISRC"], track.Resp.Attributes.Isrc)
 		}
 	}
 }
@@ -198,18 +198,7 @@ func TestWriteMP4TagsSongCredits(t *testing.T) {
 			if !slices.Equal(tags.Composers, wantComposers) {
 				t.Errorf("COMPOSER = %q, want %q", tags.Composers, wantComposers)
 			}
-			if !slices.Equal(tags.Directors, wantDirectors) {
-				t.Errorf("native DIRECTOR = %q, want %q", tags.Directors, wantDirectors)
-			}
-			for name, got := range map[string][]string{
-				"ARRANGER": tags.Arrangers, "CONDUCTOR": tags.Conductors, "ENGINEER": tags.Engineers,
-				"PERFORMER": tags.Performers, "PRODUCER": tags.Producers,
-			} {
-				if !slices.Equal(got, wantCustom[name]) {
-					t.Errorf("native %s = %q, want %q", name, got, wantCustom[name])
-				}
-				delete(wantCustom, name)
-			}
+			wantCustom["DIRECTOR"] = wantDirectors
 			var wantComposerSort []string
 			if tt.sort {
 				wantComposerSort = wantComposers
